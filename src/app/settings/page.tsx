@@ -1,0 +1,113 @@
+"use client";
+
+import Link from "next/link";
+import { ArrowLeft, Building2, CreditCard, Settings, UserPlus, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AppLayout } from "@/components/layout";
+import { Badge, BottomNavigation, Button, Card, Input, SectionTitle } from "@/components/ui";
+import { createAppNavigationItems } from "@/constants/appNavigation";
+import { getFacilitySettings, saveFacilitySettings } from "@/lib/facilitySettingsStorage";
+
+const ownerItems = [
+  { title: "契約管理", description: "契約状態を確認する器です。", icon: Users },
+  { title: "支払い管理", description: "支払い情報を確認する器です。", icon: CreditCard },
+  { title: "スタッフ招待", description: "Staff IDを招待する器です。", icon: UserPlus },
+  { title: "施設設定", description: "施設情報を管理する器です。", icon: Settings },
+];
+
+export default function SettingsPage() {
+  const [agingDays, setAgingDays] = useState("3");
+  const [savedMessage, setSavedMessage] = useState("");
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setAgingDays(String(getFacilitySettings().agingDays));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  function handleSaveFacilitySettings() {
+    const nextAgingDays = Math.max(0, Number(agingDays) || 0);
+
+    saveFacilitySettings({ agingDays: nextAgingDays });
+    setAgingDays(String(nextAgingDays));
+    setSavedMessage("保存しました");
+  }
+
+  return (
+    <AppLayout
+      bottomNavigation={<BottomNavigation items={createAppNavigationItems("settings")} />}
+      className="mx-auto grid max-w-md gap-3 py-4"
+    >
+      <header className="grid gap-3">
+        <Link className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] bg-white px-3 text-sm font-bold text-[var(--color-primary)] shadow-sm" href="/dashboard">
+          <ArrowLeft size={18} />
+          ダッシュボードへ戻る
+        </Link>
+        <div>
+          <p className="text-xs font-bold text-[var(--color-primary)]">Settings</p>
+          <h1 className="mt-1 text-xl font-bold">設定</h1>
+        </div>
+      </header>
+
+      <Card className="rounded-2xl p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <Building2 className="mt-1 text-[var(--color-primary)]" size={28} />
+          <div>
+            <p className="text-lg font-bold">施設情報</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">施設名、所在地、施設ID管理などを後のStepで配置する予定です。</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="grid gap-4 rounded-2xl p-4 shadow-sm">
+        <SectionTitle title="施設設定" description="施設ごとの運用条件を保存します。" />
+        <Input
+          className="w-full"
+          inputMode="numeric"
+          label="熟成期間（日）"
+          min={0}
+          onChange={(event) => {
+            setAgingDays(event.target.value);
+            setSavedMessage("");
+          }}
+          type="number"
+          value={agingDays}
+        />
+        <Button className="min-h-12 w-full" onClick={handleSaveFacilitySettings}>
+          保存
+        </Button>
+        {savedMessage ? <p className="text-sm font-bold text-[var(--color-primary)]">{savedMessage}</p> : null}
+      </Card>
+
+      <Card className="rounded-2xl p-4 shadow-sm" variant="info">
+        <p className="text-sm font-bold text-[var(--color-primary-dark)]">Owner / Staff 方針</p>
+        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+          通常業務機能はOwnerとStaffで同じように使える設計にします。Owner専用は契約管理、支払い管理、スタッフ招待、施設設定のみです。
+        </p>
+      </Card>
+
+      <section className="grid gap-3">
+        <SectionTitle title="Owner専用管理" description="今回は表示だけの空器です。" />
+        <div className="grid gap-3">
+          {ownerItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Card className="grid gap-3 rounded-2xl p-4 shadow-sm" key={item.title} variant="clickable">
+                <div className="flex items-center justify-between gap-3">
+                  <Icon className="text-[var(--color-primary)]" size={28} />
+                  <Badge variant="muted">未実装</Badge>
+                </div>
+                <div>
+                  <p className="font-bold">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{item.description}</p>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+    </AppLayout>
+  );
+}
