@@ -122,7 +122,7 @@ export default function FacilitySettingsPage() {
     }
   }
 
-  function save() {
+  function handleSave() {
     const nextSettings = {
       ...settings,
       agingDays: Math.max(0, Number(settings.agingDays) || 0),
@@ -149,6 +149,10 @@ export default function FacilitySettingsPage() {
       </header>
 
       {message ? <p className="rounded-xl bg-[var(--color-primary-soft)] p-3 text-sm font-bold text-[var(--color-primary-dark)]">{message}</p> : null}
+
+      <Button className="min-h-12 shadow-sm" onClick={handleSave} type="button">
+        施設設定を保存
+      </Button>
 
       <Card className="grid gap-3 rounded-2xl p-4 shadow-sm">
         <SectionTitle title="施設情報" description="帳票や今後の施設マスタへ移行する基本情報です。" />
@@ -252,9 +256,6 @@ export default function FacilitySettingsPage() {
         <Input label="作成者名の初期値" onChange={(event) => updatePdf("creatorName", event.target.value)} value={settings.pdf.creatorName} />
       </Card>
 
-      <Button className="sticky bottom-20 min-h-12 shadow-lg" onClick={save}>
-        施設設定を保存
-      </Button>
     </AppLayout>
   );
 }
