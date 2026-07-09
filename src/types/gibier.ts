@@ -64,6 +64,8 @@ export type OwnershipFields = {
   facility_id?: string;
   created_by?: string;
   updated_by?: string;
+  createdByName?: string;
+  updatedByName?: string;
 };
 
 export type Animal = OwnershipFields & {

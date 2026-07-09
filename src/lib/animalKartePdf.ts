@@ -40,7 +40,6 @@ type Row = {
 type HygieneTableMode = "facility" | "work" | "health";
 
 const facilityName = "ArcNest GIBIER";
-const authorName = "ジビエ 太郎";
 
 const speciesLabel: Record<Animal["species"], string> = {
   deer: "ニホンジカ",
@@ -396,6 +395,7 @@ function appendProcessingAbnormalityTable(parent: HTMLElement, animal: Animal) {
 
 function createPages(data: AnimalKartePdfData) {
   const outputDate = new Date().toLocaleDateString("ja-JP");
+  const authorName = data.animal.createdByName ?? "未登録";
   const facilityRecord = latest(data.facilityRecords);
   const workRecord = latest(data.workRecords);
   const healthRecord = latest(data.healthRecords);

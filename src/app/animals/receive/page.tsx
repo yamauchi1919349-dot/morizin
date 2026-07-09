@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, Input, Select, Textarea } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { addAnimal, hasDuplicateAnimalNumber } from "@/lib/animalStorage";
 import { createAutoHygieneRecordsForAnimal } from "@/lib/autoHygieneRecords";
 import { defaultFacilitySettings, defaultSpecies, getFacilitySettings, getSpeciesName, type FacilityAnimalSpecies } from "@/lib/facilitySettingsStorage";
@@ -164,6 +165,7 @@ function isGeolocationPermissionDenied(error: unknown) {
 
 export default function AnimalReceivePage() {
   const router = useRouter();
+  const { scope, user } = useAuth();
   const [currentStep, setCurrentStep] = useState(getInitialStep);
   const [form, setForm] = useState<ReceiveFormState>(getInitialReceiveForm);
   const [errors, setErrors] = useState<string[]>([]);
@@ -334,6 +336,7 @@ export default function AnimalReceivePage() {
     }
 
     const now = new Date().toISOString();
+    const creatorName = scope.name || scope.email || user?.email || (scope.isAuthenticated ? scope.userId : "未ログイン");
     const animal: Animal = {
       id: `local-${Date.now()}`,
       animalNumber: form.animalNumber.trim(),
@@ -368,6 +371,8 @@ export default function AnimalReceivePage() {
       hasIssue: hasAbnormality,
       createdAt: now,
       updatedAt: now,
+      createdByName: creatorName,
+      updatedByName: creatorName,
     };
 
     if (!addAnimal(animal)) {

@@ -202,7 +202,7 @@ function createPages(data: TraceabilityPdfData) {
     { label: "捕獲年月日", value: formatDate(data.animal.capturedAt) },
     { label: "解体年月日", value: formatDate(latestWork?.date) },
     { label: "施設責任者", value: latestFacility?.confirmedBy ?? latestWork?.confirmedBy ?? "" },
-    { label: "記入者", value: latestWork?.checkedBy ?? latestFacility?.checkedBy ?? data.animal.receivedBy },
+    { label: "記入者", value: data.animal.createdByName ?? latestWork?.checkedBy ?? latestFacility?.checkedBy ?? data.animal.receivedBy },
     { label: "捕獲地域", value: data.animal.captureLocation },
     { label: "捕獲者氏名（イニシャル）", value: data.animal.hunterName },
     { label: "捕獲方法", value: data.animal.captureMethod },

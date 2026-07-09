@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, ConfirmDialog, SectionTitle } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
+import { getAccessScopeDisplayName } from "@/lib/auth/accessScope";
 import { getAnimals, saveAnimals } from "@/lib/animalStorage";
 import { getAnimalPhotosByAnimalId } from "@/lib/animalPhotoStorage";
 import { generateAnimalKartePdf } from "@/lib/animalKartePdf";
@@ -67,6 +68,10 @@ function getReceivingAbnormalityResult(animal: Animal, itemId: string) {
 
 function getProcessingAbnormalityCheck(animal: Animal, itemId: string) {
   return animal.processingAbnormalityChecks?.find((check) => check.itemId === itemId) ?? { itemId, result: "ok" as const, note: "" };
+}
+
+function recorderName(value?: string) {
+  return value || "未登録";
 }
 
 export default function AnimalDetailPage() {
@@ -162,6 +167,7 @@ export default function AnimalDetailPage() {
       ...animal,
       status: animal.status === "processed" ? "received" : "processed",
       updatedAt: new Date().toISOString(),
+      updatedByName: getAccessScopeDisplayName(),
     };
     const storedAnimals = getAnimals();
     const nextStoredAnimals = [nextAnimal, ...storedAnimals.filter((item) => item.id !== nextAnimal.id && item.animalNumber !== nextAnimal.animalNumber)];
@@ -281,6 +287,10 @@ export default function AnimalDetailPage() {
                   <span className="font-semibold">{value}</span>
                 </div>
               ))}
+            </div>
+            <div className="grid gap-1 border-t border-[var(--color-border)] pt-2 text-xs font-semibold text-[var(--color-text-muted)]">
+              <p>記入者：{recorderName(animal.createdByName)}</p>
+              <p>最終更新者：{recorderName(animal.updatedByName ?? animal.createdByName)}</p>
             </div>
           </Card>
 

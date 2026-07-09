@@ -34,6 +34,7 @@ async function loadAccessScopeForUser(user: User): Promise<AccessScope> {
   return {
     facilityId: data?.facility_id ?? getFallbackFacilityId(user),
     userId: user.id,
+    name: data?.name ?? user.user_metadata?.name ?? user.user_metadata?.full_name ?? undefined,
     email: data?.email ?? user.email ?? undefined,
     isAuthenticated: true,
     isSupabaseConfigured: true,

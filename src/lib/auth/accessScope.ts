@@ -1,6 +1,7 @@
 export type AccessScope = {
   facilityId: string;
   userId: string;
+  name?: string;
   email?: string;
   isAuthenticated: boolean;
   isSupabaseConfigured: boolean;
@@ -10,6 +11,8 @@ export type OwnershipFields = {
   facility_id?: string;
   created_by?: string;
   updated_by?: string;
+  createdByName?: string;
+  updatedByName?: string;
 };
 
 const accessScopeStorageKey = "arcnest-gibier:access-scope";
@@ -41,6 +44,7 @@ export function getCurrentAccessScope(): AccessScope {
     return {
       facilityId: parsedScope.facilityId,
       userId: parsedScope.userId,
+      name: parsedScope.name,
       email: parsedScope.email,
       isAuthenticated: Boolean(parsedScope.isAuthenticated),
       isSupabaseConfigured: Boolean(parsedScope.isSupabaseConfigured),
@@ -48,6 +52,10 @@ export function getCurrentAccessScope(): AccessScope {
   } catch {
     return localAccessScope;
   }
+}
+
+export function getAccessScopeDisplayName(scope = getCurrentAccessScope()) {
+  return scope.name || scope.email || (scope.isAuthenticated ? scope.userId : "未ログイン");
 }
 
 export function saveCurrentAccessScope(scope: AccessScope) {
@@ -69,20 +77,28 @@ export function filterByCurrentFacility<T extends OwnershipFields>(records: T[],
 }
 
 export function withCreateOwnership<T extends OwnershipFields>(record: T, scope = getCurrentAccessScope()): T {
+  const displayName = getAccessScopeDisplayName(scope);
+
   return {
     ...record,
     facility_id: record.facility_id ?? scope.facilityId,
     created_by: record.created_by ?? scope.userId,
     updated_by: record.updated_by ?? scope.userId,
+    createdByName: record.createdByName ?? displayName,
+    updatedByName: record.updatedByName ?? displayName,
   };
 }
 
 export function withUpdateOwnership<T extends OwnershipFields>(record: T, scope = getCurrentAccessScope()): T {
+  const displayName = getAccessScopeDisplayName(scope);
+
   return {
     ...record,
     facility_id: record.facility_id ?? scope.facilityId,
     created_by: record.created_by ?? scope.userId,
     updated_by: scope.userId,
+    createdByName: record.createdByName ?? displayName,
+    updatedByName: displayName,
   };
 }
 
