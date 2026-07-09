@@ -30,7 +30,7 @@ export default function SettingsPage() {
   function handleSaveFacilitySettings() {
     const nextAgingDays = Math.max(0, Number(agingDays) || 0);
 
-    saveFacilitySettings({ agingDays: nextAgingDays });
+    saveFacilitySettings({ ...getFacilitySettings(), agingDays: nextAgingDays });
     setAgingDays(String(nextAgingDays));
     setSavedMessage("保存しました");
   }
@@ -80,6 +80,19 @@ export default function SettingsPage() {
         </Button>
         {savedMessage ? <p className="text-sm font-bold text-[var(--color-primary)]">{savedMessage}</p> : null}
       </Card>
+
+      <Link href="/settings/facility">
+        <Card className="grid gap-3 rounded-2xl p-4 shadow-sm" variant="clickable">
+          <div className="flex items-center justify-between gap-3">
+            <Settings className="text-[var(--color-primary)]" size={28} />
+            <Badge>施設設定</Badge>
+          </div>
+          <div>
+            <p className="font-bold">施設設定</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">施設情報、スタッフ招待、熟成期間、種別、PDF表示情報を登録します。</p>
+          </div>
+        </Card>
+      </Link>
 
       <Card className="rounded-2xl p-4 shadow-sm" variant="info">
         <p className="text-sm font-bold text-[var(--color-primary-dark)]">Owner / Staff 方針</p>

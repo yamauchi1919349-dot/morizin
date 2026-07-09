@@ -8,6 +8,7 @@ import { BottomNavigation, Button, Card, Input } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
 import { getAnimals } from "@/lib/animalStorage";
 import { getAnimalStatusBadgeClass } from "@/lib/animalStatus";
+import { getSpeciesName as getConfiguredSpeciesName } from "@/lib/facilitySettingsStorage";
 import { type Animal } from "@/types/gibier";
 
 const pageSize = 10;
@@ -58,7 +59,9 @@ function getListStatus(animal: Animal): AnimalListStatus {
 }
 
 function getSpeciesName(animal: Animal) {
-  return animal.species === "deer" ? "ニホンジカ" : "イノシシ";
+  if (animal.species === "deer") return "ニホンジカ";
+  if (animal.species === "boar") return "イノシシ";
+  return getConfiguredSpeciesName(animal.species);
 }
 
 function getSexName(animal: Animal) {

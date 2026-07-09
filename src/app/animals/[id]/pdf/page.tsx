@@ -15,6 +15,7 @@ import { getFacilityHygieneRecords, getHealthCheckRecords, getWorkHygieneRecords
 import { getInventoryItemsByAnimalId } from "@/lib/inventoryStorage";
 import { getShipmentsByAnimalId } from "@/lib/shipmentStorage";
 import { generateTraceabilityPdf } from "@/lib/traceabilityPdf";
+import { getSpeciesName } from "@/lib/facilitySettingsStorage";
 import {
   animalAcceptanceDecisionLabel,
   antlerStatusLabel,
@@ -131,7 +132,7 @@ export default function AnimalPdfPage() {
           rows: [
             { label: "用途", value: "お客様用トレーサビリティ票" },
             { label: "個体識別番号", value: animal.animalNumber },
-            { label: "動物種", value: speciesLabel[animal.species] },
+            { label: "動物種", value: speciesLabel[animal.species] ?? getSpeciesName(animal.species) },
             { label: "妊娠の有無", value: pregnancyStatusLabel[animal.pregnancyStatus ?? ""] },
             { label: "角の有無", value: antlerStatusLabel[animal.antlerStatus ?? ""] },
             { label: "推定年齢", value: estimatedAgeLabel[animal.estimatedAge ?? ""] },
@@ -162,7 +163,7 @@ export default function AnimalPdfPage() {
         rows: [
           { label: "用途", value: "国産ジビエ認証提出用" },
           { label: "個体識別番号", value: animal.animalNumber },
-          { label: "種別", value: speciesLabel[animal.species] },
+          { label: "種別", value: speciesLabel[animal.species] ?? getSpeciesName(animal.species) },
           { label: "妊娠の有無", value: pregnancyStatusLabel[animal.pregnancyStatus ?? ""] },
           { label: "角の有無", value: antlerStatusLabel[animal.antlerStatus ?? ""] },
           { label: "推定年齢", value: estimatedAgeLabel[animal.estimatedAge ?? ""] },
@@ -268,7 +269,7 @@ export default function AnimalPdfPage() {
             <p className="text-xs font-bold text-[var(--color-text-muted)]">対象個体</p>
             <h2 className="text-3xl font-bold">{animal.animalNumber}</h2>
             <p className="text-sm font-bold text-[var(--color-text-muted)]">
-              {speciesLabel[animal.species]} / {statusLabel[animal.status]}
+              {speciesLabel[animal.species] ?? getSpeciesName(animal.species)} / {statusLabel[animal.status]}
             </p>
           </Card>
 

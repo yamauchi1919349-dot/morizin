@@ -1,6 +1,6 @@
 export type AccountRole = "owner" | "staff";
 
-export type AnimalSpecies = "deer" | "boar";
+export type AnimalSpecies = string;
 
 export type AnimalSex = "male" | "female" | "unknown";
 
@@ -247,7 +247,7 @@ export type HealthCheckRecord = OwnershipFields & {
   updatedAt: string;
 };
 
-export const speciesLabel: Record<AnimalSpecies, string> = {
+export const speciesLabel: Record<string, string> = {
   deer: "ニホンジカ",
   boar: "イノシシ",
 };

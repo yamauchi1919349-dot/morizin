@@ -12,6 +12,7 @@ import { getAnimals } from "@/lib/animalStorage";
 import { getFacilityHygieneRecords, getHealthCheckRecords, getWorkHygieneRecords } from "@/lib/hygieneStorage";
 import { getInventoryItemsByAnimalId } from "@/lib/inventoryStorage";
 import { getShipmentsByAnimalId } from "@/lib/shipmentStorage";
+import { getSpeciesName } from "@/lib/facilitySettingsStorage";
 import type { Animal, FacilityHygieneRecord, HealthCheckRecord, InventoryItem, Shipment, WorkHygieneRecord } from "@/types/gibier";
 
 const facilityName = "ArcNest GIBIER";
@@ -31,7 +32,9 @@ function sexLabel(sex: Animal["sex"]) {
 }
 
 function speciesLabel(species: Animal["species"]) {
-  return species === "deer" ? "ニホンジカ" : "イノシシ";
+  if (species === "deer") return "ニホンジカ";
+  if (species === "boar") return "イノシシ";
+  return getSpeciesName(species);
 }
 
 function display(value?: string | number) {

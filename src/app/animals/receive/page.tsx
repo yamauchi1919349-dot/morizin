@@ -9,6 +9,7 @@ import { Badge, BottomNavigation, Button, Card, Input, Select, Textarea } from "
 import { createAppNavigationItems } from "@/constants/appNavigation";
 import { addAnimal, hasDuplicateAnimalNumber } from "@/lib/animalStorage";
 import { createAutoHygieneRecordsForAnimal } from "@/lib/autoHygieneRecords";
+import { defaultFacilitySettings, defaultSpecies, getFacilitySettings, getSpeciesName, type FacilityAnimalSpecies } from "@/lib/facilitySettingsStorage";
 import { fetchCurrentLocationWeather, type CurrentLocationWeather } from "@/lib/weather";
 import {
   bleedingPerformedLabel,
@@ -115,6 +116,14 @@ function formatDateTime(value: string) {
   return value ? value.replace("T", " ") : "未入力";
 }
 
+function calculateAgingEndDate(receivedAt: string, agingDays: number) {
+  if (!receivedAt) return "未入力";
+  const date = new Date(receivedAt);
+  if (Number.isNaN(date.getTime())) return "未入力";
+  date.setDate(date.getDate() + agingDays);
+  return date.toLocaleDateString("ja-JP");
+}
+
 function toStorageDate(value: string) {
   return formatDateTime(value).replaceAll("-", "/");
 }
@@ -163,6 +172,8 @@ export default function AnimalReceivePage() {
   const [weatherStatus, setWeatherStatus] = useState<"loading" | "success" | "error">("loading");
   const [weatherErrorMessage, setWeatherErrorMessage] = useState("");
   const [photoStepView, setPhotoStepView] = useState<PhotoStepView>("summary");
+  const [speciesOptions, setSpeciesOptions] = useState<FacilityAnimalSpecies[]>(defaultSpecies);
+  const [defaultAgingDays, setDefaultAgingDays] = useState(defaultFacilitySettings.agingDays);
 
   function updateForm<K extends keyof ReceiveFormState>(key: K, value: ReceiveFormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -250,6 +261,9 @@ export default function AnimalReceivePage() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void updateWeatherFields(true);
+      const facilitySettings = getFacilitySettings();
+      setSpeciesOptions(facilitySettings.species);
+      setDefaultAgingDays(facilitySettings.agingDays);
     }, 0);
 
     return () => {
@@ -418,8 +432,11 @@ export default function AnimalReceivePage() {
           <Input label="個体識別番号 *" onChange={(event) => updateForm("animalNumber", event.target.value)} placeholder="126046" value={form.animalNumber} />
           <Select label="種別 *" onChange={(event) => updateForm("species", event.target.value as AnimalSpecies)} value={form.species}>
             <option value="">選択してください</option>
-            <option value="deer">ニホンジカ</option>
-            <option value="boar">イノシシ</option>
+            {speciesOptions.map((species) => (
+              <option key={species.id} value={species.id}>
+                {species.name}
+              </option>
+            ))}
           </Select>
           <Select label="性別" onChange={(event) => updateForm("sex", event.target.value as AnimalSex)} value={form.sex}>
             <option value="male">オス</option>
@@ -659,7 +676,7 @@ export default function AnimalReceivePage() {
               <div className="grid gap-2 text-sm">
                 {[
                   ["個体識別番号", form.animalNumber || "未入力"],
-                  ["種別", form.species ? speciesLabel[form.species] : "未入力"],
+                  ["種別", form.species ? speciesLabel[form.species] ?? getSpeciesName(form.species) : "未入力"],
                   ["性別", sexLabel[form.sex]],
                   ["妊娠の有無", pregnancyStatusLabel[form.pregnancyStatus]],
                   ["角の有無", antlerStatusLabel[form.antlerStatus]],
@@ -673,6 +690,7 @@ export default function AnimalReceivePage() {
                   ["捕獲方法", form.captureMethod || "未入力"],
                   ["捕獲者名", form.hunterName || "未入力"],
                   ["搬入日時", formatDateTime(form.receivedAt)],
+                  ["熟成終了予定日", calculateAgingEndDate(form.receivedAt, defaultAgingDays)],
                   ["搬入者", form.transporterName || "未入力"],
                   ["止め刺し者", form.receivedBy || "未入力"],
                   ["放血の実施", bleedingPerformedLabel[form.bleedingPerformed]],

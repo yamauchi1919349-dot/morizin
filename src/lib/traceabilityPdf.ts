@@ -11,6 +11,7 @@ import {
   type Shipment,
   type WorkHygieneRecord,
 } from "@/types/gibier";
+import { getFacilitySettings } from "@/lib/facilitySettingsStorage";
 
 type TraceabilityPdfData = {
   animal: Animal;
@@ -192,6 +193,8 @@ function appendManagementTable(parent: HTMLElement, rows: Row[]) {
 function createPages(data: TraceabilityPdfData) {
   const latestFacility = latest(data.facilityRecords);
   const latestWork = latest(data.workRecords);
+  const facilitySettings = getFacilitySettings();
+  const pdfPhoneNumber = facilitySettings.pdf.phoneNumber || facilitySettings.facility.phoneNumber;
   const page = createPage();
 
   appendManagementTable(page, [
@@ -207,7 +210,7 @@ function createPages(data: TraceabilityPdfData) {
     { label: "性別", value: sexLabel[data.animal.sex] },
     { label: "体重（内臓摘出後）", value: data.animal.weightKg ? String(data.animal.weightKg) : "" },
     { label: "金属探知機", value: metalDetectorValue(data) },
-    { label: "電話番号", value: "" },
+    { label: "電話番号", value: pdfPhoneNumber },
   ]);
 
   return [page];

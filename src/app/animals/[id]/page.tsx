@@ -22,6 +22,7 @@ import { getFacilityHygieneRecords, getHealthCheckRecords, getWorkHygieneRecords
 import { getInventoryItemsByAnimalId } from "@/lib/inventoryStorage";
 import { getShipmentsByAnimalId } from "@/lib/shipmentStorage";
 import { generateTraceabilityPdf } from "@/lib/traceabilityPdf";
+import { getSpeciesName } from "@/lib/facilitySettingsStorage";
 import {
   bleedingPerformedLabel,
   antlerStatusLabel,
@@ -121,7 +122,7 @@ export default function AnimalDetailPage() {
   const rows = animal
     ? [
         ["個体識別番号", animal.animalNumber],
-        ["種別", speciesLabel[animal.species]],
+        ["種別", speciesLabel[animal.species] ?? getSpeciesName(animal.species)],
         ["性別", sexLabel[animal.sex]],
         ["妊娠の有無", pregnancyStatusLabel[animal.pregnancyStatus ?? ""]],
         ["角の有無", antlerStatusLabel[animal.antlerStatus ?? ""]],
@@ -258,7 +259,7 @@ export default function AnimalDetailPage() {
                 <p className="text-xs font-bold text-[var(--color-text-muted)]">個体識別番号</p>
                 <h2 className="mt-1 text-3xl font-bold">{animal.animalNumber}</h2>
                 <p className="mt-1 text-sm font-bold text-[var(--color-text-muted)]">
-                  {speciesLabel[animal.species]} / {sexLabel[animal.sex]}
+                  {speciesLabel[animal.species] ?? getSpeciesName(animal.species)} / {sexLabel[animal.sex]}
                 </p>
               </div>
               <button
