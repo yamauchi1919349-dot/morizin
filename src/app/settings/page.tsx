@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Building2, CreditCard, Settings, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Building2, CreditCard, Settings, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, Input, SectionTitle } from "@/components/ui";
@@ -11,8 +11,6 @@ import { getFacilitySettings, saveFacilitySettings } from "@/lib/facilitySetting
 const ownerItems = [
   { title: "契約管理", description: "契約状態を確認する器です。", icon: Users },
   { title: "支払い管理", description: "支払い情報を確認する器です。", icon: CreditCard },
-  { title: "スタッフ招待", description: "Staff IDを招待する器です。", icon: UserPlus },
-  { title: "施設設定", description: "施設情報を管理する器です。", icon: Settings },
 ];
 
 export default function SettingsPage() {
@@ -97,7 +95,7 @@ export default function SettingsPage() {
       <Card className="rounded-2xl p-4 shadow-sm" variant="info">
         <p className="text-sm font-bold text-[var(--color-primary-dark)]">Owner / Staff 方針</p>
         <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-          通常業務機能はOwnerとStaffで同じように使える設計にします。Owner専用は契約管理、支払い管理、スタッフ招待、施設設定のみです。
+          通常業務機能はOwnerとStaffで同じように使える設計にします。Owner専用は契約管理、支払い管理、施設設定のみです。
         </p>
       </Card>
 
