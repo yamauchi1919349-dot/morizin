@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Building2, CreditCard, Settings, Users } from "lucide-react";
+import { ArrowLeft, CreditCard, Settings, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, Input, SectionTitle } from "@/components/ui";
@@ -49,16 +49,6 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <Card className="rounded-2xl p-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <Building2 className="mt-1 text-[var(--color-primary)]" size={28} />
-          <div>
-            <p className="text-lg font-bold">施設情報</p>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">施設名、所在地、施設ID管理などを後のStepで配置する予定です。</p>
-          </div>
-        </div>
-      </Card>
-
       <Card className="grid gap-4 rounded-2xl p-4 shadow-sm">
         <SectionTitle title="施設設定" description="施設ごとの運用条件を保存します。" />
         <Input
@@ -91,13 +81,6 @@ export default function SettingsPage() {
           </div>
         </Card>
       </Link>
-
-      <Card className="rounded-2xl p-4 shadow-sm" variant="info">
-        <p className="text-sm font-bold text-[var(--color-primary-dark)]">Owner / Staff 方針</p>
-        <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-          通常業務機能はOwnerとStaffで同じように使える設計にします。Owner専用は契約管理、支払い管理、施設設定のみです。
-        </p>
-      </Card>
 
       <section className="grid gap-3">
         <SectionTitle title="Owner専用管理" description="今回は表示だけの空器です。" />
