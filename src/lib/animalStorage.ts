@@ -1,4 +1,5 @@
 import type { Animal } from "@/types/gibier";
+import { filterByCurrentFacility, mergeScopedRecords, withCreateOwnership } from "@/lib/auth/accessScope";
 
 export const ANIMAL_STORAGE_KEY = "arcnest-gibier:animals";
 
@@ -7,6 +8,10 @@ function canUseStorage() {
 }
 
 export function getAnimals(): Animal[] {
+  return filterByCurrentFacility(readAllAnimals());
+}
+
+function readAllAnimals(): Animal[] {
   if (!canUseStorage()) return [];
 
   try {
@@ -22,7 +27,7 @@ export function getAnimals(): Animal[] {
 
 export function saveAnimals(animals: Animal[]) {
   if (!canUseStorage()) return;
-  window.localStorage.setItem(ANIMAL_STORAGE_KEY, JSON.stringify(animals));
+  window.localStorage.setItem(ANIMAL_STORAGE_KEY, JSON.stringify(mergeScopedRecords(readAllAnimals(), animals)));
 }
 
 function normalizeAnimalNumber(animalNumber: string) {
@@ -43,7 +48,7 @@ export function addAnimal(animal: Animal) {
   if (hasDuplicateAnimalNumber(animal.animalNumber, animal.id)) return false;
 
   const animals = getAnimals();
-  saveAnimals([animal, ...animals]);
+  saveAnimals([withCreateOwnership(animal), ...animals]);
   return true;
 }
 

@@ -1,4 +1,5 @@
 import type { FacilityHygieneRecord, HealthCheckRecord, WorkHygieneRecord } from "@/types/gibier";
+import { filterByCurrentFacility, mergeScopedRecords, withCreateOwnership, type OwnershipFields } from "@/lib/auth/accessScope";
 
 export const FACILITY_HYGIENE_STORAGE_KEY = "arcnest-gibier:facility-hygiene";
 export const WORK_HYGIENE_STORAGE_KEY = "arcnest-gibier:work-hygiene";
@@ -8,7 +9,7 @@ function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-function readRecords<T>(key: string): T[] {
+function readAllRecords<T>(key: string): T[] {
   if (!canUseStorage()) return [];
 
   try {
@@ -22,9 +23,13 @@ function readRecords<T>(key: string): T[] {
   }
 }
 
-function saveRecords<T>(key: string, records: T[]) {
+function readRecords<T extends OwnershipFields>(key: string): T[] {
+  return filterByCurrentFacility(readAllRecords<T>(key));
+}
+
+function saveRecords<T extends OwnershipFields & { id: string }>(key: string, records: T[]) {
   if (!canUseStorage()) return;
-  window.localStorage.setItem(key, JSON.stringify(records));
+  window.localStorage.setItem(key, JSON.stringify(mergeScopedRecords(readAllRecords<T>(key), records)));
 }
 
 export function getFacilityHygieneRecords() {
@@ -36,7 +41,7 @@ export function saveFacilityHygieneRecords(records: FacilityHygieneRecord[]) {
 }
 
 export function addFacilityHygieneRecord(record: FacilityHygieneRecord) {
-  saveFacilityHygieneRecords([record, ...getFacilityHygieneRecords()]);
+  saveFacilityHygieneRecords([withCreateOwnership(record), ...getFacilityHygieneRecords()]);
 }
 
 export function getWorkHygieneRecords() {
@@ -48,7 +53,7 @@ export function saveWorkHygieneRecords(records: WorkHygieneRecord[]) {
 }
 
 export function addWorkHygieneRecord(record: WorkHygieneRecord) {
-  saveWorkHygieneRecords([record, ...getWorkHygieneRecords()]);
+  saveWorkHygieneRecords([withCreateOwnership(record), ...getWorkHygieneRecords()]);
 }
 
 export function getHealthCheckRecords() {
@@ -60,7 +65,7 @@ export function saveHealthCheckRecords(records: HealthCheckRecord[]) {
 }
 
 export function addHealthCheckRecord(record: HealthCheckRecord) {
-  saveHealthCheckRecords([record, ...getHealthCheckRecords()]);
+  saveHealthCheckRecords([withCreateOwnership(record), ...getHealthCheckRecords()]);
 }
 
 export function getHygieneStatusByAnimalId(animalId: string) {

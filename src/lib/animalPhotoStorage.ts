@@ -1,4 +1,5 @@
 import type { AnimalPhoto } from "@/types/gibier";
+import { filterByCurrentFacility, mergeScopedRecords, withCreateOwnership } from "@/lib/auth/accessScope";
 
 export const ANIMAL_PHOTO_STORAGE_KEY = "arcnest-gibier:animal-photos";
 
@@ -7,6 +8,10 @@ function canUseStorage() {
 }
 
 export function getAnimalPhotos(): AnimalPhoto[] {
+  return filterByCurrentFacility(readAllAnimalPhotos());
+}
+
+function readAllAnimalPhotos(): AnimalPhoto[] {
   if (!canUseStorage()) return [];
 
   try {
@@ -26,12 +31,12 @@ export function getAnimalPhotosByAnimalId(animalId: string) {
 
 export function saveAnimalPhotos(photos: AnimalPhoto[]) {
   if (!canUseStorage()) return;
-  window.localStorage.setItem(ANIMAL_PHOTO_STORAGE_KEY, JSON.stringify(photos));
+  window.localStorage.setItem(ANIMAL_PHOTO_STORAGE_KEY, JSON.stringify(mergeScopedRecords(readAllAnimalPhotos(), photos)));
 }
 
 export function upsertAnimalPhoto(photo: AnimalPhoto) {
   const photos = getAnimalPhotos();
-  const nextPhotos = [photo, ...photos.filter((item) => item.id !== photo.id && !(item.animalId === photo.animalId && item.type === photo.type))];
+  const nextPhotos = [withCreateOwnership(photo), ...photos.filter((item) => item.id !== photo.id && !(item.animalId === photo.animalId && item.type === photo.type))];
   saveAnimalPhotos(nextPhotos);
 }
 

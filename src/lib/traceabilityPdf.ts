@@ -1,20 +1,12 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import {
-  bleedingPerformedLabel,
-  antlerStatusLabel,
-  animalAcceptanceDecisionLabel,
-  estimatedAgeLabel,
   impactOrBleedingPartLabel,
-  knifeSanitationMethodLabel,
-  processingAbnormalityItems,
-  pregnancyStatusLabel,
-  receivingAbnormalityItems,
-  transportCoolingLabel,
   type Animal,
   type AnimalPhoto,
   type FacilityHygieneRecord,
   type HealthCheckRecord,
+  type HygieneCheckValue,
   type InventoryItem,
   type Shipment,
   type WorkHygieneRecord,
@@ -35,120 +27,120 @@ type Row = {
   value: string;
 };
 
-const facilityName = "ArcNest GIBIER";
-const confirmerName = "ジビエ 太郎";
-
-const speciesLabel: Record<Animal["species"], string> = {
-  deer: "ニホンジカ",
-  boar: "イノシシ",
-};
+const fallbackName = "未登録";
 
 const sexLabel: Record<Animal["sex"], string> = {
   male: "オス",
   female: "メス",
-  unknown: "不明",
-};
-
-const statusLabel: Record<Animal["status"], string> = {
-  received: "受入済み",
-  waiting_processing: "処理待ち",
-  processing: "処理中",
-  processed: "処理済み",
-  in_stock: "在庫保管",
-  waiting_shipment: "出荷待ち",
-  shipped: "出荷済み",
-  discarded: "廃棄",
-  needs_review: "要確認",
+  unknown: "未登録",
 };
 
 function display(value?: string | number | null) {
-  if (value === undefined || value === null || value === "") return "未登録";
+  if (value === undefined || value === null || value === "") return fallbackName;
   return String(value);
 }
 
-function latest<T extends { createdAt?: string; date?: string; shippedAt?: string }>(items: T[]) {
-  return [...items].sort((a, b) => display(b.shippedAt ?? b.createdAt ?? b.date).localeCompare(display(a.shippedAt ?? a.createdAt ?? a.date)))[0];
+function latest<T extends { createdAt?: string; date?: string }>(items: T[]) {
+  return [...items].sort((a, b) => display(b.createdAt ?? b.date).localeCompare(display(a.createdAt ?? a.date)))[0];
 }
 
-function abnormalityRows(animal: Animal): Row[] {
-  const receivingAbnormalities = receivingAbnormalityItems.filter((item) => animal.receivingAbnormalityChecks?.find((check) => check.itemId === item.id)?.result === "yes");
-  const processingAbnormalities = processingAbnormalityItems
-    .map((item) => ({ item, check: animal.processingAbnormalityChecks?.find((entry) => entry.itemId === item.id) }))
-    .filter(({ check }) => check?.result === "abnormal");
+function formatDate(value?: string | null) {
+  if (!value) return fallbackName;
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateOnly) return `${dateOnly[1]}年${dateOnly[2]}月${dateOnly[3]}日`;
 
-  return [
-    { label: "受入時の異常", value: receivingAbnormalities.length > 0 ? `${receivingAbnormalities.length}件あり` : "すべていいえ" },
-    ...receivingAbnormalities.map((item) => ({ label: "受入時確認", value: item.label })),
-    { label: "解体時の異常", value: processingAbnormalities.length > 0 ? `${processingAbnormalities.length}件あり` : "すべて問題なし" },
-    ...processingAbnormalities.map(({ item, check }) => ({
-      label: `解体時 ${item.category}`,
-      value: `${item.label}${check?.note ? ` / 備考: ${check.note}` : ""}`,
-    })),
-    { label: "受入可否", value: animalAcceptanceDecisionLabel[animal.acceptanceDecision ?? "accepted"] },
-    { label: "不可理由", value: animal.acceptanceDecision === "rejected" ? animal.acceptanceRejectionReason || "未入力" : "なし" },
-  ];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return display(value);
+
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}年${month}月${day}日`;
 }
 
-function createPage(title: string, subtitle?: string) {
+function optionalValue(source: object, key: string) {
+  return Object.prototype.hasOwnProperty.call(source, key) ? (source as Record<string, unknown>)[key] : undefined;
+}
+
+function normalizeMetalDetectorValue(value: unknown) {
+  if (value === true) return "ok";
+  if (value === false) return "ng";
+  if (typeof value !== "string") return "";
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return "";
+  if (["ok", "問題なし", "検査済", "検査済み", "済", "true", "yes"].includes(normalized)) return "ok";
+  if (["ng", "未実施", "false", "no", "not_applicable", "該当なし"].includes(normalized)) return "ng";
+
+  return "";
+}
+
+function metalDetectorValue(data: TraceabilityPdfData) {
+  const values: Array<HygieneCheckValue | string> = [];
+
+  data.workRecords.forEach((record) => {
+    record.checks
+      .filter((check) => check.itemId === "clean-12" || check.itemId === "clean-13")
+      .forEach((check) => values.push(check.result ?? check.value ?? ""));
+    record.fields
+      .filter((field) => field.fieldId === "metal-detector" || field.fieldId === "metalDetector" || field.fieldId === "metalDetectorResult")
+      .forEach((field) => values.push(field.value));
+  });
+
+  data.facilityRecords.forEach((record) => {
+    record.checks
+      .filter((check) => check.itemId === "packing-metal-operation" || check.itemId === "packing-metal-sterilize")
+      .forEach((check) => {
+        values.push(check.before ?? check.value ?? "");
+        values.push(check.after ?? check.value ?? "");
+      });
+    record.fields
+      .filter((field) => field.fieldId === "metal-detector" || field.fieldId === "metalDetector" || field.fieldId === "metalDetectorResult")
+      .forEach((field) => values.push(field.value));
+  });
+
+  [optionalValue(data.animal, "metalDetector"), optionalValue(data.animal, "metalDetectorResult"), optionalValue(data.animal, "metalDetectorChecked")].forEach((value) => {
+    const normalized = normalizeMetalDetectorValue(value);
+    if (normalized) values.push(normalized);
+  });
+
+  const normalizedValues = values.map((value) => normalizeMetalDetectorValue(value)).filter(Boolean);
+  if (normalizedValues.some((value) => value === "ok")) return "検査済";
+  if (normalizedValues.some((value) => value === "ng")) return "未実施";
+  return "";
+}
+
+function createPage() {
   const page = document.createElement("section");
   page.style.width = "794px";
   page.style.minHeight = "1123px";
   page.style.boxSizing = "border-box";
-  page.style.padding = "44px";
+  page.style.padding = "188px 72px 0";
   page.style.background = "#ffffff";
-  page.style.color = "#12312a";
+  page.style.color = "#222222";
   page.style.fontFamily = "\"Yu Gothic\", \"Meiryo\", \"Hiragino Kaku Gothic ProN\", sans-serif";
-  page.style.display = "flex";
-  page.style.flexDirection = "column";
-  page.style.gap = "18px";
-
-  const header = document.createElement("div");
-  header.style.borderRadius = "18px";
-  header.style.background = "#0f766e";
-  header.style.color = "#ffffff";
-  header.style.padding = "24px";
-
-  const heading = document.createElement("h1");
-  heading.textContent = title;
-  heading.style.margin = "0";
-  heading.style.fontSize = "30px";
-  heading.style.letterSpacing = "0";
-
-  header.appendChild(heading);
-
-  if (subtitle) {
-    const sub = document.createElement("p");
-    sub.textContent = subtitle;
-    sub.style.margin = "8px 0 0";
-    sub.style.fontSize = "15px";
-    sub.style.fontWeight = "700";
-    header.appendChild(sub);
-  }
-
-  page.appendChild(header);
   return page;
 }
 
-function appendSection(parent: HTMLElement, title: string, rows: Row[]) {
-  const section = document.createElement("div");
-  section.style.border = "1px solid #cbd5d1";
-  section.style.borderRadius = "14px";
-  section.style.overflow = "hidden";
-  section.style.background = "#ffffff";
-
-  const heading = document.createElement("h2");
-  heading.textContent = title;
-  heading.style.margin = "0";
-  heading.style.padding = "10px 14px";
-  heading.style.fontSize = "16px";
-  heading.style.background = "#ecfdf5";
-  heading.style.color = "#065f46";
-  section.appendChild(heading);
-
+function appendManagementTable(parent: HTMLElement, rows: Row[]) {
   const table = document.createElement("table");
   table.style.width = "100%";
   table.style.borderCollapse = "collapse";
-  table.style.fontSize = "13px";
+  table.style.tableLayout = "fixed";
+  table.style.border = "2px solid #111111";
+
+  const titleRow = document.createElement("tr");
+  const titleCell = document.createElement("th");
+  titleCell.colSpan = 2;
+  titleCell.textContent = "個体受け入れ管理表";
+  titleCell.style.border = "2px solid #111111";
+  titleCell.style.padding = "12px 8px";
+  titleCell.style.fontSize = "25px";
+  titleCell.style.fontWeight = "500";
+  titleCell.style.textAlign = "center";
+  titleCell.style.lineHeight = "1.25";
+  titleRow.appendChild(titleCell);
+  table.appendChild(titleRow);
 
   rows.forEach((row) => {
     const tr = document.createElement("tr");
@@ -156,195 +148,69 @@ function appendSection(parent: HTMLElement, title: string, rows: Row[]) {
     const td = document.createElement("td");
 
     th.textContent = row.label;
-    th.style.width = "34%";
-    th.style.borderTop = "1px solid #e5e7eb";
-    th.style.background = "#f8fafc";
-    th.style.padding = "9px 12px";
-    th.style.textAlign = "left";
-    th.style.verticalAlign = "top";
+    th.style.width = "44%";
+    th.style.border = "2px solid #111111";
+    th.style.padding = "9px 8px";
+    th.style.fontSize = "23px";
+    th.style.fontWeight = "500";
+    th.style.textAlign = "center";
+    th.style.verticalAlign = "middle";
+    th.style.lineHeight = "1.25";
+    th.style.wordBreak = "keep-all";
 
     td.textContent = display(row.value);
-    td.style.borderTop = "1px solid #e5e7eb";
-    td.style.padding = "9px 12px";
-    td.style.verticalAlign = "top";
+    td.style.width = "56%";
+    td.style.border = "2px solid #111111";
+    td.style.padding = "9px 10px";
+    td.style.fontSize = "23px";
+    td.style.fontWeight = "400";
+    td.style.textAlign = "center";
+    td.style.verticalAlign = "middle";
+    td.style.lineHeight = "1.25";
+    td.style.wordBreak = "break-word";
 
     tr.append(th, td);
     table.appendChild(tr);
   });
 
-  section.appendChild(table);
-  parent.appendChild(section);
-}
+  const storageRow = document.createElement("tr");
+  const storageCell = document.createElement("td");
+  storageCell.colSpan = 2;
+  storageCell.textContent = "加熱用・－１８度以下保存";
+  storageCell.style.border = "2px solid #111111";
+  storageCell.style.padding = "12px 8px";
+  storageCell.style.fontSize = "23px";
+  storageCell.style.fontWeight = "500";
+  storageCell.style.textAlign = "center";
+  storageCell.style.lineHeight = "1.25";
+  storageRow.appendChild(storageCell);
+  table.appendChild(storageRow);
 
-function appendAssurance(parent: HTMLElement, rows: Row[]) {
-  const grid = document.createElement("div");
-  grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "1fr 1fr";
-  grid.style.gap = "10px";
-
-  rows.forEach((row) => {
-    const card = document.createElement("div");
-    card.style.border = "1px solid #bbf7d0";
-    card.style.background = "#f0fdf4";
-    card.style.borderRadius = "12px";
-    card.style.padding = "12px";
-
-    const label = document.createElement("p");
-    label.textContent = row.label;
-    label.style.margin = "0 0 6px";
-    label.style.fontSize = "12px";
-    label.style.fontWeight = "700";
-    label.style.color = "#166534";
-
-    const value = document.createElement("p");
-    value.textContent = display(row.value);
-    value.style.margin = "0";
-    value.style.fontSize = "16px";
-    value.style.fontWeight = "800";
-    value.style.color = "#14532d";
-
-    card.append(label, value);
-    grid.appendChild(card);
-  });
-
-  parent.appendChild(grid);
-}
-
-function appendTimeline(parent: HTMLElement, rows: Row[]) {
-  const list = document.createElement("div");
-  list.style.display = "grid";
-  list.style.gap = "10px";
-
-  rows.forEach((row, index) => {
-    const item = document.createElement("div");
-    item.style.display = "grid";
-    item.style.gridTemplateColumns = "32px 1fr";
-    item.style.gap = "10px";
-    item.style.alignItems = "start";
-
-    const number = document.createElement("span");
-    number.textContent = String(index + 1);
-    number.style.display = "grid";
-    number.style.placeItems = "center";
-    number.style.width = "28px";
-    number.style.height = "28px";
-    number.style.borderRadius = "999px";
-    number.style.background = "#0f766e";
-    number.style.color = "#ffffff";
-    number.style.fontWeight = "800";
-
-    const body = document.createElement("div");
-    body.style.border = "1px solid #d1fae5";
-    body.style.borderRadius = "12px";
-    body.style.padding = "10px 12px";
-    body.style.background = "#ffffff";
-
-    const label = document.createElement("p");
-    label.textContent = row.label;
-    label.style.margin = "0";
-    label.style.fontWeight = "800";
-    label.style.color = "#064e3b";
-
-    const value = document.createElement("p");
-    value.textContent = display(row.value);
-    value.style.margin = "4px 0 0";
-    value.style.fontSize = "13px";
-    value.style.color = "#475569";
-
-    body.append(label, value);
-    item.append(number, body);
-    list.appendChild(item);
-  });
-
-  parent.appendChild(list);
+  parent.appendChild(table);
 }
 
 function createPages(data: TraceabilityPdfData) {
-  const issueDate = new Date().toLocaleDateString("ja-JP");
-  const latestShipment = latest(data.shipments);
-  const firstShipmentItem = latestShipment?.items[0];
-  const latestInventory = latest(data.inventoryItems);
-  const hasHygieneRecord = data.facilityRecords.length + data.workRecords.length + data.healthRecords.length > 0;
-  const pages: HTMLElement[] = [];
+  const latestFacility = latest(data.facilityRecords);
+  const latestWork = latest(data.workRecords);
+  const page = createPage();
 
-  const page = createPage("トレーサビリティ票", "お客様用");
-  appendSection(page, "基本情報", [
-    { label: "個体識別番号", value: data.animal.animalNumber },
-    { label: "動物種", value: speciesLabel[data.animal.species] },
-    { label: "性別", value: sexLabel[data.animal.sex] },
-    { label: "妊娠の有無", value: pregnancyStatusLabel[data.animal.pregnancyStatus ?? ""] },
-    { label: "角の有無", value: antlerStatusLabel[data.animal.antlerStatus ?? ""] },
-    { label: "推定年齢", value: estimatedAgeLabel[data.animal.estimatedAge ?? ""] },
-    { label: "体重", value: `${data.animal.weightKg}kg` },
-    { label: "捕獲日", value: data.animal.capturedAt },
-    { label: "天気", value: data.animal.weather || "未入力" },
-    { label: "気温", value: data.animal.temperatureC ? `${data.animal.temperatureC}℃` : "未入力" },
-    { label: "捕獲場所", value: data.animal.captureLocation },
-    { label: "メッシュ番号", value: data.animal.meshNumber || "未入力" },
+  appendManagementTable(page, [
+    { label: "個体番号", value: data.animal.animalNumber },
+    { label: "捕獲年月日", value: formatDate(data.animal.capturedAt) },
+    { label: "解体年月日", value: formatDate(latestWork?.date) },
+    { label: "施設責任者", value: latestFacility?.confirmedBy ?? latestWork?.confirmedBy ?? "" },
+    { label: "記入者", value: latestWork?.checkedBy ?? latestFacility?.checkedBy ?? data.animal.receivedBy },
+    { label: "捕獲地域", value: data.animal.captureLocation },
+    { label: "捕獲者氏名（イニシャル）", value: data.animal.hunterName },
     { label: "捕獲方法", value: data.animal.captureMethod },
-    { label: "捕獲者", value: data.animal.hunterName },
+    { label: "被弾または止め刺し行使部位", value: impactOrBleedingPartLabel[data.animal.impactOrBleedingPart ?? ""] },
+    { label: "性別", value: sexLabel[data.animal.sex] },
+    { label: "体重（内臓摘出後）", value: data.animal.weightKg ? String(data.animal.weightKg) : "" },
+    { label: "金属探知機", value: metalDetectorValue(data) },
+    { label: "電話番号", value: "" },
   ]);
 
-  appendSection(page, "搬入・処理情報", [
-    { label: "搬入日", value: data.animal.receivedAt },
-    { label: "搬入者", value: data.animal.transportedBy ?? "" },
-    { label: "処理施設名", value: facilityName },
-    { label: "止め刺し者", value: data.animal.stopBleedingBy ?? data.animal.receivedBy },
-    { label: "放血の実施", value: bleedingPerformedLabel[data.animal.bleedingPerformed ?? ""] },
-    { label: "放血用ナイフの消毒方法", value: knifeSanitationMethodLabel[data.animal.knifeSanitationMethod ?? ""] },
-    { label: "放血開始時間", value: data.animal.bleedingStartTime || "未入力" },
-    { label: "運搬時冷却", value: transportCoolingLabel[data.animal.transportCooling ?? ""] },
-    { label: "被弾または止め刺し部位", value: impactOrBleedingPartLabel[data.animal.impactOrBleedingPart ?? ""] },
-    { label: "処理状況", value: statusLabel[data.animal.status] },
-    ...abnormalityRows(data.animal),
-  ]);
-
-  appendSection(page, "出荷情報", [
-    { label: "出荷番号", value: latestShipment?.shipmentNumber ?? "" },
-    { label: "出荷日", value: latestShipment?.shippedAt ?? "" },
-    { label: "出荷先", value: latestShipment?.customerName ?? "" },
-    { label: "部位", value: firstShipmentItem?.partName ?? latestInventory?.partName ?? "" },
-    { label: "重量", value: firstShipmentItem ? `${firstShipmentItem.weightKg}kg` : latestInventory ? `${latestInventory.weightKg}kg` : "" },
-    { label: "数量", value: firstShipmentItem ? String(firstShipmentItem.quantity) : latestInventory ? String(latestInventory.quantity) : "" },
-    { label: "ロット番号", value: firstShipmentItem?.lotNumber ?? latestInventory?.lotNumber ?? "" },
-  ]);
-
-  appendSection(page, "安心確認", []);
-  appendAssurance(page, [
-    { label: "写真記録", value: data.photos.length > 0 ? "登録済み" : "未登録" },
-    { label: "衛生管理記録", value: hasHygieneRecord ? "登録済み" : "未登録" },
-    { label: "在庫記録", value: data.inventoryItems.length > 0 ? "登録済み" : "未登録" },
-    { label: "出荷記録", value: data.shipments.length > 0 ? "登録済み" : "未登録" },
-  ]);
-
-  appendSection(page, "発行情報", [
-    { label: "発行日", value: issueDate },
-    { label: "施設名", value: facilityName },
-    { label: "確認者", value: confirmerName },
-  ]);
-
-  pages.push(page);
-
-  const needsDetailPage = data.animal.notes || data.shipments.length === 0 || data.inventoryItems.length === 0 || !hasHygieneRecord;
-  if (needsDetailPage) {
-    const detail = createPage("詳細情報", "捕獲から出荷までの流れ");
-    appendTimeline(detail, [
-      { label: "捕獲", value: `${display(data.animal.capturedAt)} / ${display(data.animal.captureLocation)} / ${display(data.animal.meshNumber)}` },
-      { label: "搬入", value: `${display(data.animal.receivedAt)} / ${display(data.animal.stopBleedingBy ?? data.animal.receivedBy)}` },
-      { label: "衛生確認", value: hasHygieneRecord ? "衛生管理記録あり" : "未登録" },
-      { label: "在庫登録", value: data.inventoryItems.length > 0 ? `${data.inventoryItems.length}件` : "未登録" },
-      { label: "出荷登録", value: data.shipments.length > 0 ? `${data.shipments.length}件` : "未登録" },
-    ]);
-    appendSection(detail, "未登録項目・備考", [
-      { label: "出荷情報", value: data.shipments.length > 0 ? "登録済み" : "未登録" },
-      { label: "在庫情報", value: data.inventoryItems.length > 0 ? "登録済み" : "未登録" },
-      { label: "衛生管理記録", value: hasHygieneRecord ? "登録済み" : "未登録" },
-      { label: "備考", value: data.animal.notes },
-    ]);
-    pages.push(detail);
-  }
-
-  return pages;
+  return [page];
 }
 
 export async function generateTraceabilityPdf(data: TraceabilityPdfData) {
@@ -374,7 +240,6 @@ export async function generateTraceabilityPdf(data: TraceabilityPdfData) {
       pdf.addImage(image, "JPEG", 0, 0, 210, 297);
     }
 
-    // TODO: QRコードをPDFに追加予定
     // TODO: pdf_exports に出力履歴を保存予定
     // TODO: Supabase Storage にPDFファイル保存予定
     pdf.save(`traceability-${data.animal.animalNumber}.pdf`);

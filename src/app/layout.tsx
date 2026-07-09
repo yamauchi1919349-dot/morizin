@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
+import { AuthProvider } from "@/lib/auth/AuthProvider";
 import "./globals.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gibier.arcnest.jp";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "森zin",
   description: "ジビエ個体管理アプリ",
   manifest: "/manifest.json",
@@ -28,7 +32,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

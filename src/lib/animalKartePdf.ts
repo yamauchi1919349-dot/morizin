@@ -37,6 +37,8 @@ type Row = {
   value: string;
 };
 
+type HygieneTableMode = "facility" | "work" | "health";
+
 const facilityName = "ArcNest GIBIER";
 const authorName = "ジビエ 太郎";
 
@@ -194,7 +196,7 @@ function appendEmpty(parent: HTMLElement, text = "未登録") {
   parent.appendChild(empty);
 }
 
-function appendHygieneTable(parent: HTMLElement, items: HygieneFormItem[], checks: HygieneCheckEntry[] | undefined, mode: "facility" | "work" | "health") {
+function appendHygieneTable(parent: HTMLElement, items: HygieneFormItem[], checks: HygieneCheckEntry[] | undefined, mode: HygieneTableMode, startIndex = 0) {
   if (!checks) {
     appendEmpty(parent);
     return;
@@ -203,7 +205,9 @@ function appendHygieneTable(parent: HTMLElement, items: HygieneFormItem[], check
   const table = document.createElement("table");
   table.style.width = "100%";
   table.style.borderCollapse = "collapse";
-  table.style.fontSize = mode === "facility" ? "8px" : "10px";
+  table.style.fontSize = mode === "health" ? "10px" : "11px";
+  table.style.tableLayout = "fixed";
+  table.style.lineHeight = "1.45";
 
   const headers =
     mode === "facility"
@@ -213,13 +217,23 @@ function appendHygieneTable(parent: HTMLElement, items: HygieneFormItem[], check
         : ["区分", "No.", "項目", "結果"];
 
   const thead = document.createElement("tr");
-  headers.forEach((header) => {
+  const widths =
+    mode === "facility"
+      ? ["12%", "6%", "52%", "10%", "10%", "10%"]
+      : mode === "health"
+        ? ["14%", "7%", "49%", "15%", "15%"]
+        : ["18%", "7%", "60%", "15%"];
+
+  headers.forEach((header, index) => {
     const th = document.createElement("th");
     th.textContent = header;
+    th.style.width = widths[index];
     th.style.border = "1px solid #d1d5db";
     th.style.background = "#f3f4f6";
-    th.style.padding = "5px";
+    th.style.padding = mode === "health" ? "5px" : "6px";
     th.style.textAlign = "left";
+    th.style.verticalAlign = "top";
+    th.style.wordBreak = "break-word";
     thead.appendChild(th);
   });
   table.appendChild(thead);
@@ -229,23 +243,80 @@ function appendHygieneTable(parent: HTMLElement, items: HygieneFormItem[], check
     const tr = document.createElement("tr");
     const cells =
       mode === "facility"
-        ? [item.section, String(item.no ?? index + 1), item.label, checkValue(check, "before"), checkValue(check, "after"), display(check?.note)]
+        ? [item.section, String(item.no ?? startIndex + index + 1), item.label, checkValue(check, "before"), checkValue(check, "after"), display(check?.note)]
         : mode === "health"
-          ? [item.section, String(item.no ?? index + 1), item.label, checkValue(check, "receiving"), checkValue(check, "processing")]
-          : [item.section, String(item.no ?? index + 1), item.label, checkValue(check, "result")];
+          ? [item.section, String(item.no ?? startIndex + index + 1), item.label, checkValue(check, "receiving"), checkValue(check, "processing")]
+          : [item.section, String(item.no ?? startIndex + index + 1), item.label, checkValue(check, "result")];
 
-    cells.forEach((cell) => {
+    cells.forEach((cell, cellIndex) => {
       const td = document.createElement("td");
       td.textContent = cell;
+      td.style.width = widths[cellIndex];
       td.style.border = "1px solid #d1d5db";
-      td.style.padding = "4px";
+      td.style.padding = mode === "health" ? "4px" : "6px";
       td.style.verticalAlign = "top";
+      td.style.wordBreak = "break-word";
+      td.style.overflowWrap = "anywhere";
       tr.appendChild(td);
     });
     table.appendChild(tr);
   });
 
   parent.appendChild(table);
+}
+
+function chunkItems<T>(items: T[], firstPageCount: number, nextPageCount: number) {
+  if (items.length === 0) return [[]];
+
+  const chunks: T[][] = [];
+  chunks.push(items.slice(0, firstPageCount));
+
+  for (let index = firstPageCount; index < items.length; index += nextPageCount) {
+    chunks.push(items.slice(index, index + nextPageCount));
+  }
+
+  return chunks;
+}
+
+function appendPageCounter(parent: HTMLElement, currentPage: number, totalPages: number) {
+  if (totalPages <= 1) return;
+
+  const counter = document.createElement("p");
+  counter.textContent = `${currentPage} / ${totalPages}`;
+  counter.style.margin = "0";
+  counter.style.marginTop = "auto";
+  counter.style.textAlign = "right";
+  counter.style.fontSize = "11px";
+  counter.style.color = "#6b7280";
+  parent.appendChild(counter);
+}
+
+function createHygienePages(
+  title: string,
+  subtitle: string,
+  infoRows: Row[],
+  items: HygieneFormItem[],
+  checks: HygieneCheckEntry[] | undefined,
+  mode: Extract<HygieneTableMode, "facility" | "work">
+) {
+  const firstPageCount = mode === "facility" ? 18 : 12;
+  const nextPageCount = mode === "facility" ? 24 : 16;
+  const chunks = checks ? chunkItems(items, firstPageCount, nextPageCount) : [[]];
+  let startIndex = 0;
+
+  return chunks.map((chunk, index) => {
+    const page = createPage(title, chunks.length > 1 ? `${subtitle} (${index + 1}/${chunks.length})` : subtitle);
+
+    if (index === 0) {
+      appendRows(page, infoRows);
+    }
+
+    appendHygieneTable(page, chunk, checks, mode, startIndex);
+    appendPageCounter(page, index + 1, chunks.length);
+    startIndex += chunk.length;
+
+    return page;
+  });
 }
 
 function appendReceivingAbnormalityTable(parent: HTMLElement, animal: Animal) {
@@ -386,28 +457,24 @@ function createPages(data: AnimalKartePdfData) {
   ]);
   pages.push(processingAbnormality);
 
-  const facility = createPage("施設衛生点検簿", "Step16正式項目");
-  appendRows(facility, [
+  const facilityInfoRows = [
     { label: "作業日", value: facilityRecord?.date ?? "" },
     { label: "記入者", value: facilityRecord?.checkedBy ?? "" },
     { label: "責任者", value: facilityRecord?.confirmedBy ?? "" },
     { label: "責任者確認日", value: facilityRecord?.confirmedAt ?? "" },
     { label: "備考", value: facilityRecord?.notes ?? "" },
-  ]);
-  appendHygieneTable(facility, facilityHygieneFormItems, facilityRecord?.checks, "facility");
-  pages.push(facility);
+  ];
+  pages.push(...createHygienePages("施設衛生点検簿", "Step16正式項目", facilityInfoRows, facilityHygieneFormItems, facilityRecord?.checks, "facility"));
 
-  const work = createPage("作業時衛生管理簿", "Step16正式項目");
-  appendRows(work, [
+  const workInfoRows = [
     { label: "個体番号", value: workRecord?.animalNumber ?? data.animal.animalNumber },
     { label: "作業日", value: workRecord?.date ?? "" },
     { label: "記入者", value: workRecord?.checkedBy ?? "" },
     { label: "責任者", value: workRecord?.confirmedBy ?? "" },
     { label: "逸脱項目", value: workRecord?.deviationItems ?? "" },
     { label: "逸脱時の考察と対応", value: workRecord?.deviationResponse ?? "" },
-  ]);
-  appendHygieneTable(work, workHygieneFormItems, workRecord?.checks, "work");
-  pages.push(work);
+  ];
+  pages.push(...createHygienePages("作業時衛生管理簿", "Step16正式項目", workInfoRows, workHygieneFormItems, workRecord?.checks, "work"));
 
   const health = createPage("健康管理簿", "Step16正式項目");
   appendRows(health, [

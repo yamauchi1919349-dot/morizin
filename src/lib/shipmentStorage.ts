@@ -1,4 +1,5 @@
 import type { Shipment } from "@/types/gibier";
+import { filterByCurrentFacility, mergeScopedRecords, withCreateOwnership } from "@/lib/auth/accessScope";
 
 export const SHIPMENT_STORAGE_KEY = "arcnest-gibier:shipments";
 
@@ -7,6 +8,10 @@ function canUseStorage() {
 }
 
 export function getShipments() {
+  return filterByCurrentFacility(readAllShipments());
+}
+
+function readAllShipments() {
   if (!canUseStorage()) return [];
 
   try {
@@ -22,11 +27,11 @@ export function getShipments() {
 
 export function saveShipments(shipments: Shipment[]) {
   if (!canUseStorage()) return;
-  window.localStorage.setItem(SHIPMENT_STORAGE_KEY, JSON.stringify(shipments));
+  window.localStorage.setItem(SHIPMENT_STORAGE_KEY, JSON.stringify(mergeScopedRecords(readAllShipments(), shipments)));
 }
 
 export function addShipment(shipment: Shipment) {
-  saveShipments([shipment, ...getShipments()]);
+  saveShipments([withCreateOwnership(shipment), ...getShipments()]);
 }
 
 export function getShipmentsByAnimalId(animalId: string) {

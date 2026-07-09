@@ -1,3 +1,5 @@
+import { getCurrentAccessScope } from "@/lib/auth/accessScope";
+
 export type FacilitySettings = {
   agingDays: number;
 };
@@ -19,10 +21,14 @@ function normalizeFacilitySettings(value: unknown): FacilitySettings {
   };
 }
 
+function getScopedFacilitySettingsStorageKey() {
+  return `${facilitySettingsStorageKey}:${getCurrentAccessScope().facilityId}`;
+}
+
 export function getFacilitySettings(): FacilitySettings {
   if (typeof window === "undefined") return defaultFacilitySettings;
 
-  const raw = window.localStorage.getItem(facilitySettingsStorageKey);
+  const raw = window.localStorage.getItem(getScopedFacilitySettingsStorageKey()) ?? window.localStorage.getItem(facilitySettingsStorageKey);
   if (!raw) return defaultFacilitySettings;
 
   try {
@@ -35,5 +41,5 @@ export function getFacilitySettings(): FacilitySettings {
 export function saveFacilitySettings(settings: FacilitySettings) {
   if (typeof window === "undefined") return;
 
-  window.localStorage.setItem(facilitySettingsStorageKey, JSON.stringify(normalizeFacilitySettings(settings)));
+  window.localStorage.setItem(getScopedFacilitySettingsStorageKey(), JSON.stringify(normalizeFacilitySettings(settings)));
 }

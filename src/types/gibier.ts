@@ -60,7 +60,13 @@ export type PdfExportType = "animal_karte" | "traceability";
 
 export type BadgeTone = "default" | "success" | "warning" | "danger" | "muted";
 
-export type Animal = {
+export type OwnershipFields = {
+  facility_id?: string;
+  created_by?: string;
+  updated_by?: string;
+};
+
+export type Animal = OwnershipFields & {
   id: string;
   animalNumber: string;
   species: AnimalSpecies;
@@ -96,7 +102,7 @@ export type Animal = {
   updatedAt: string;
 };
 
-export type AnimalPhoto = {
+export type AnimalPhoto = OwnershipFields & {
   id: string;
   animalId: string;
   type: AnimalPhotoType;
@@ -106,7 +112,7 @@ export type AnimalPhoto = {
   createdAt: string;
 };
 
-export type InventoryItem = {
+export type InventoryItem = OwnershipFields & {
   id: string;
   animalId: string;
   animalNumber: string;
@@ -127,7 +133,7 @@ export type ShipmentItem = {
   lotNumber?: string;
 };
 
-export type Shipment = {
+export type Shipment = OwnershipFields & {
   id: string;
   shipmentNumber: string;
   animalId: string;
@@ -149,7 +155,7 @@ export type HygieneRecordSummary = {
   hasIssue: boolean;
 };
 
-export type PdfExportHistory = {
+export type PdfExportHistory = OwnershipFields & {
   id: string;
   animalId: string;
   animalNumber: string;
@@ -184,7 +190,7 @@ export type HygieneFieldEntry = {
   value: string;
 };
 
-export type FacilityHygieneRecord = {
+export type FacilityHygieneRecord = OwnershipFields & {
   id: string;
   date: string;
   animalId?: string;
@@ -202,7 +208,7 @@ export type FacilityHygieneRecord = {
   updatedAt: string;
 };
 
-export type WorkHygieneRecord = {
+export type WorkHygieneRecord = OwnershipFields & {
   id: string;
   date: string;
   animalId?: string;
@@ -222,7 +228,7 @@ export type WorkHygieneRecord = {
   updatedAt: string;
 };
 
-export type HealthCheckRecord = {
+export type HealthCheckRecord = OwnershipFields & {
   id: string;
   date: string;
   animalId?: string;

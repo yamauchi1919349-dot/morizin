@@ -1,4 +1,5 @@
 import type { InventoryItem } from "@/types/gibier";
+import { filterByCurrentFacility, mergeScopedRecords, withCreateOwnership } from "@/lib/auth/accessScope";
 
 export const INVENTORY_STORAGE_KEY = "arcnest-gibier:inventory-items";
 
@@ -7,6 +8,10 @@ function canUseStorage() {
 }
 
 export function getInventoryItems() {
+  return filterByCurrentFacility(readAllInventoryItems());
+}
+
+function readAllInventoryItems() {
   if (!canUseStorage()) return [];
 
   try {
@@ -22,11 +27,11 @@ export function getInventoryItems() {
 
 export function saveInventoryItems(items: InventoryItem[]) {
   if (!canUseStorage()) return;
-  window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(items));
+  window.localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(mergeScopedRecords(readAllInventoryItems(), items)));
 }
 
 export function addInventoryItem(item: InventoryItem) {
-  saveInventoryItems([item, ...getInventoryItems()]);
+  saveInventoryItems([withCreateOwnership(item), ...getInventoryItems()]);
 }
 
 export function getInventoryItemsByAnimalId(animalId: string) {
