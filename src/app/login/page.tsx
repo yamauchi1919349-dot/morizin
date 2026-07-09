@@ -5,6 +5,7 @@ import Image from "next/image";
 import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AppFooter } from "@/components/layout/AppFooter";
 import { Button, Card, Input } from "@/components/ui";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -107,6 +108,7 @@ export default function LoginPage() {
           </div>
         </Card>
       </section>
+      <AppFooter className="pb-8" />
     </main>
   );
 }

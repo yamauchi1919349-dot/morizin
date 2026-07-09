@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { PageContainer } from "@/components/ui";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { cn } from "@/lib/cn";
+import { AppFooter } from "./AppFooter";
 
 type AppLayoutProps = {
   children: ReactNode;
@@ -14,11 +15,13 @@ type AppLayoutProps = {
   className?: string;
 };
 
+const publicPaths = ["/login", "/terms", "/privacy", "/legal"];
+
 export function AppLayout({ children, header, bottomNavigation, className }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { isConfigured, isLoading, scope, signOut, user } = useAuth();
-  const shouldRequireLogin = isConfigured && pathname !== "/login";
+  const shouldRequireLogin = isConfigured && !publicPaths.includes(pathname);
 
   useEffect(() => {
     if (!shouldRequireLogin || isLoading || user) return;
@@ -59,6 +62,7 @@ export function AppLayout({ children, header, bottomNavigation, className }: App
         </header>
       ) : null}
       <PageContainer className={cn(bottomNavigation ? "pb-24" : undefined, className)}>{children}</PageContainer>
+      <AppFooter className={bottomNavigation ? "pb-28 sm:pb-8" : "pb-8"} />
       {bottomNavigation}
     </div>
   );

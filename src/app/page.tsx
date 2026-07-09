@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { AppFooter } from "@/components/layout/AppFooter";
 
 const links = [
   { label: "ログインへ", href: "/login", primary: true },
@@ -36,6 +37,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <AppFooter className="pb-8" />
     </main>
   );
 }
