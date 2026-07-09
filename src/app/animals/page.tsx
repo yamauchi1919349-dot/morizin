@@ -64,6 +64,16 @@ function getSpeciesName(animal: Animal) {
   return getConfiguredSpeciesName(animal.species);
 }
 
+function getSpeciesIcon(speciesName?: string) {
+  const normalizedName = speciesName?.trim() || "未登録";
+
+  if (["ニホンジカ", "エゾシカ", "鹿", "シカ", "キョン"].some((keyword) => normalizedName.includes(keyword))) return "🦌";
+  if (["イノシシ", "猪"].some((keyword) => normalizedName.includes(keyword))) return "🐗";
+  if (["ヒグマ", "ツキノワグマ", "熊", "クマ"].some((keyword) => normalizedName.includes(keyword))) return "🐻";
+
+  return "🐾";
+}
+
 function getSexName(animal: Animal) {
   if (animal.sex === "male") return "オス";
   if (animal.sex === "female") return "メス";
@@ -267,6 +277,8 @@ export default function AnimalsPage() {
 
         {pagedAnimals.map((animal) => {
           const listStatus = getListStatus(animal);
+          const speciesName = getSpeciesName(animal);
+          const speciesIcon = getSpeciesIcon(speciesName);
 
           return (
             <Card className="grid gap-3 rounded-2xl p-3 shadow-sm" key={animal.id}>
@@ -278,8 +290,12 @@ export default function AnimalsPage() {
                     <span className={getAnimalStatusBadgeClass(animal)}>{listStatus}</span>
                   </div>
                 </div>
-                <div className="h-16 w-20 overflow-hidden rounded-xl bg-[linear-gradient(135deg,#315f2f,#d8c68f)]">
-                  <div className="grid h-full place-items-center text-lg font-bold text-white">{getSpeciesName(animal)}</div>
+                <div
+                  aria-label={`種別: ${speciesName}`}
+                  className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-[var(--color-border)] bg-[var(--color-primary-soft)] text-3xl shadow-sm"
+                  title={speciesName}
+                >
+                  <span aria-hidden="true">{speciesIcon}</span>
                 </div>
               </div>
 
@@ -293,7 +309,7 @@ export default function AnimalsPage() {
 
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                 <span className="text-[var(--color-text-muted)]">種別</span>
-                <strong>{getSpeciesName(animal)} / {getSexName(animal)}</strong>
+                <strong>{speciesName} / {getSexName(animal)}</strong>
                 <span className="text-[var(--color-text-muted)]">妊娠の有無</span>
                 <strong>{animal.pregnancyStatus === "yes" ? "あり" : animal.pregnancyStatus === "no" ? "なし" : "未入力"}</strong>
                 <span className="text-[var(--color-text-muted)]">角の有無</span>
