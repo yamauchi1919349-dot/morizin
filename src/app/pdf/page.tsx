@@ -6,7 +6,7 @@ import { createAppNavigationItems } from "@/constants/appNavigation";
 
 export default function PdfPage() {
   return (
-    <AppLayout bottomNavigation={<BottomNavigation items={createAppNavigationItems("settings")} />} className="mx-auto grid max-w-md gap-3 py-4">
+    <AppLayout bottomNavigation={<BottomNavigation items={createAppNavigationItems("pdf")} />} className="mx-auto grid max-w-md gap-3 py-4">
       <header className="flex items-center justify-between">
         <Link className="text-sm font-bold text-[var(--color-primary)]" href="/dashboard">
           <ArrowLeft size={18} />

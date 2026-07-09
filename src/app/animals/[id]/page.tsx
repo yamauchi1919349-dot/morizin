@@ -15,13 +15,13 @@ import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, ConfirmDialog, SectionTitle } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
 import { getAccessScopeDisplayName } from "@/lib/auth/accessScope";
-import { getAnimals, saveAnimals } from "@/lib/animalStorage";
 import { getAnimalPhotosByAnimalId } from "@/lib/animalPhotoStorage";
 import { generateAnimalKartePdf } from "@/lib/animalKartePdf";
 import { getAnimalStatusBadgeClass, getAnimalStatusLabel } from "@/lib/animalStatus";
 import { getFacilityHygieneRecords, getHealthCheckRecords, getWorkHygieneRecords } from "@/lib/hygieneStorage";
 import { getInventoryItemsByAnimalId } from "@/lib/inventoryStorage";
 import { getShipmentsByAnimalId } from "@/lib/shipmentStorage";
+import { deleteAnimal, getAnimalById, updateAnimal } from "@/lib/supabase/animals";
 import { generateTraceabilityPdf } from "@/lib/traceabilityPdf";
 import { getSpeciesName } from "@/lib/facilitySettingsStorage";
 import {
@@ -92,7 +92,7 @@ export default function AnimalDetailPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const storedAnimal = getAnimals().find((item) => item.id === animalId || item.animalNumber === animalId);
+      void getAnimalById(animalId).then((storedAnimal) => {
       const nextAnimal = storedAnimal ?? null;
 
       setAnimal(nextAnimal);
@@ -119,6 +119,7 @@ export default function AnimalDetailPage() {
       setHealthRecords(getHealthCheckRecords().filter((record) => !record.animalNumber || matchesAnimal(nextAnimal, record.animalId, record.animalNumber)));
       setInventoryItems(uniqueById(localInventory));
       setShipments(uniqueById(localShipments));
+      });
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
@@ -160,7 +161,7 @@ export default function AnimalDetailPage() {
 
   const photoRegistrationCount = photoSlots.filter((slot) => photos.some((photo) => photo.type === slot.type)).length;
 
-  function toggleAnimalStatus() {
+  async function toggleAnimalStatus() {
     if (!animal) return;
 
     const nextAnimal: Animal = {
@@ -169,11 +170,8 @@ export default function AnimalDetailPage() {
       updatedAt: new Date().toISOString(),
       updatedByName: getAccessScopeDisplayName(),
     };
-    const storedAnimals = getAnimals();
-    const nextStoredAnimals = [nextAnimal, ...storedAnimals.filter((item) => item.id !== nextAnimal.id && item.animalNumber !== nextAnimal.animalNumber)];
-
-    saveAnimals(nextStoredAnimals);
-    setAnimal(nextAnimal);
+    const result = await updateAnimal(animal.id, nextAnimal);
+    setAnimal(result?.animal ?? nextAnimal);
   }
 
   async function handleGenerateAnimalKartePdf() {
@@ -228,11 +226,10 @@ export default function AnimalDetailPage() {
     }
   }
 
-  function handleDeleteAnimal() {
+  async function handleDeleteAnimal() {
     if (!animal) return;
 
-    const nextAnimals = getAnimals().filter((item) => item.id !== animal.id && item.animalNumber !== animal.animalNumber);
-    saveAnimals(nextAnimals);
+    await deleteAnimal(animal.id);
     setIsDeleteDialogOpen(false);
     setAnimal(null);
     router.push("/animals");

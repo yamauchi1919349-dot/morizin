@@ -6,9 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { BottomNavigation, Button, Card, Input } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
-import { getAnimals } from "@/lib/animalStorage";
 import { getAnimalStatusBadgeClass } from "@/lib/animalStatus";
 import { getSpeciesName as getConfiguredSpeciesName } from "@/lib/facilitySettingsStorage";
+import { listAnimals } from "@/lib/supabase/animals";
 import { type Animal } from "@/types/gibier";
 
 const pageSize = 10;
@@ -155,7 +155,7 @@ export default function AnimalsPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      setStoredAnimals(getAnimals());
+      void listAnimals().then(setStoredAnimals);
     }, 0);
 
     return () => window.clearTimeout(timeoutId);

@@ -8,10 +8,10 @@ import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Card, SectionTitle } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
 import { traceabilityFormItems } from "@/constants/hygieneForms";
-import { getAnimals } from "@/lib/animalStorage";
 import { getFacilityHygieneRecords, getHealthCheckRecords, getWorkHygieneRecords } from "@/lib/hygieneStorage";
 import { getInventoryItemsByAnimalId } from "@/lib/inventoryStorage";
 import { getShipmentsByAnimalId } from "@/lib/shipmentStorage";
+import { getAnimalById } from "@/lib/supabase/animals";
 import { getSpeciesName } from "@/lib/facilitySettingsStorage";
 import type { Animal, FacilityHygieneRecord, HealthCheckRecord, InventoryItem, Shipment, WorkHygieneRecord } from "@/types/gibier";
 
@@ -54,7 +54,7 @@ export default function AnimalTraceabilityPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const storedAnimal = getAnimals().find((item) => item.id === animalId || item.animalNumber === animalId);
+      void getAnimalById(animalId).then((storedAnimal) => {
       const nextAnimal = storedAnimal ?? null;
       setAnimal(nextAnimal);
 
@@ -75,6 +75,7 @@ export default function AnimalTraceabilityPage() {
       setHealthRecords(getHealthCheckRecords().filter((record) => !record.animalNumber || matchesAnimal(nextAnimal, record.animalId, record.animalNumber)));
       setInventoryItems(uniqueById(localInventory));
       setShipments(uniqueById(localShipments));
+      });
     }, 0);
 
     return () => window.clearTimeout(timeoutId);

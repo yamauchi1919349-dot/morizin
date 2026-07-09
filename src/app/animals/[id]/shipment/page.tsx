@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, Input, SectionTitle, Select, Textarea } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
-import { getAnimals } from "@/lib/animalStorage";
 import { addShipment, deleteShipment, getShipmentsByAnimalId } from "@/lib/shipmentStorage";
+import { getAnimalById } from "@/lib/supabase/animals";
 import type { Animal, Shipment, ShipmentStatus } from "@/types/gibier";
 import { animalStatusBadgeTone, animalStatusLabel, speciesLabel } from "@/types/gibier";
 
@@ -43,7 +43,7 @@ export default function AnimalShipmentPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const storedAnimal = getAnimals().find((item) => item.id === animalId || item.animalNumber === animalId);
+      void getAnimalById(animalId).then((storedAnimal) => {
       const nextAnimal = storedAnimal ?? null;
       setAnimal(nextAnimal);
       setShipments(getShipmentsByAnimalId(animalId));
@@ -53,6 +53,7 @@ export default function AnimalShipmentPage() {
         setShipmentNumber((current) => current || `S-${dateToken}-${nextAnimal.animalNumber}`);
         setLotNumber((current) => current || `LOT-${nextAnimal.animalNumber}`);
       }
+      });
     }, 0);
 
     return () => window.clearTimeout(timeoutId);

@@ -6,8 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, Input, SectionTitle } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
-import { getAnimals } from "@/lib/animalStorage";
 import { getAnimalPhotosByAnimalId } from "@/lib/animalPhotoStorage";
+import { listAnimals } from "@/lib/supabase/animals";
 import { getFacilityHygieneRecords, getHealthCheckRecords, getWorkHygieneRecords } from "@/lib/hygieneStorage";
 import { getInventoryItemsByAnimalId } from "@/lib/inventoryStorage";
 import { getShipmentsByAnimalId } from "@/lib/shipmentStorage";
@@ -55,7 +55,9 @@ export default function TraceabilityBulkPdfPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      setAnimals(uniqueAnimals(getAnimals()).sort((a, b) => a.animalNumber.localeCompare(b.animalNumber)));
+      void listAnimals().then((loadedAnimals) => {
+        setAnimals(uniqueAnimals(loadedAnimals).sort((a, b) => a.animalNumber.localeCompare(b.animalNumber)));
+      });
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
@@ -111,7 +113,7 @@ export default function TraceabilityBulkPdfPage() {
   }
 
   return (
-    <AppLayout bottomNavigation={<BottomNavigation items={createAppNavigationItems("settings")} />} className="mx-auto grid max-w-md gap-4 overflow-x-hidden py-4">
+    <AppLayout bottomNavigation={<BottomNavigation items={createAppNavigationItems("pdf")} />} className="mx-auto grid max-w-md gap-4 overflow-x-hidden py-4">
       <header className="flex items-center justify-between">
         <Link className="inline-flex items-center gap-1 text-sm font-bold text-[var(--color-primary)]" href="/dashboard">
           <ArrowLeft size={18} />

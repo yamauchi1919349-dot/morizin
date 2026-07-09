@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CreditCard, Settings, Users } from "lucide-react";
+import { ArrowLeft, CreditCard, Database, Settings, Users } from "lucide-react";
+import { useState } from "react";
 import { AppLayout } from "@/components/layout";
-import { Badge, BottomNavigation, Card, SectionTitle } from "@/components/ui";
+import { Badge, BottomNavigation, Button, Card, SectionTitle } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { migrateLocalAnimalsToSupabase, type AnimalMigrationResult } from "@/lib/supabase/animals";
 
 const ownerItems = [
   { title: "契約管理", description: "契約状態を確認する器です。", icon: Users },
@@ -12,6 +15,19 @@ const ownerItems = [
 ];
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const [migrationResult, setMigrationResult] = useState<AnimalMigrationResult | null>(null);
+  const [isMigratingAnimals, setIsMigratingAnimals] = useState(false);
+
+  async function handleMigrateAnimals() {
+    setIsMigratingAnimals(true);
+    try {
+      setMigrationResult(await migrateLocalAnimalsToSupabase());
+    } finally {
+      setIsMigratingAnimals(false);
+    }
+  }
+
   return (
     <AppLayout
       bottomNavigation={<BottomNavigation items={createAppNavigationItems("settings")} />}
@@ -40,6 +56,34 @@ export default function SettingsPage() {
           </div>
         </Card>
       </Link>
+
+      {user ? (
+        <Card className="grid gap-3 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <Database className="text-[var(--color-primary)]" size={24} />
+            <Badge variant="muted">Supabase</Badge>
+          </div>
+          <div>
+            <p className="font-bold">ローカル個体データをSupabaseへ移行</p>
+            <p className="mt-2 text-xs leading-5 text-[var(--color-text-muted)]">localStorageは削除せず、個体識別番号が重複する場合は既存データを更新します。</p>
+          </div>
+          <Button disabled={isMigratingAnimals} onClick={handleMigrateAnimals} variant="secondary">
+            {isMigratingAnimals ? "移行中..." : "ローカル個体データをSupabaseへ移行"}
+          </Button>
+          {migrationResult ? (
+            <>
+            <p className="text-xs font-bold text-[var(--color-text-muted)]">
+              成功 {migrationResult.successCount}件 / 失敗 {migrationResult.failureCount}件 / スキップ {migrationResult.skippedCount}件
+            </p>
+              {migrationResult.failureReasons.slice(0, 3).map((reason) => (
+                <p className="text-xs font-bold text-red-600" key={reason}>
+                  {reason}
+                </p>
+              ))}
+            </>
+          ) : null}
+        </Card>
+      ) : null}
 
       <section className="grid gap-3">
         <SectionTitle title="Owner専用管理" description="今回は表示だけの空器です。" />

@@ -1,13 +1,12 @@
-import { ClipboardList, History, Home, Package, Settings, ShieldCheck } from "lucide-react";
+import { ClipboardList, FileText, History, Home, Settings } from "lucide-react";
 
-export type AppNavKey = "dashboard" | "animals" | "hygiene" | "inventory" | "settings";
+export type AppNavKey = "dashboard" | "animals" | "pdf" | "hygiene" | "inventory" | "settings";
 
 const appNavigation = [
-  { key: "dashboard", label: "ホーム", href: "/dashboard", icon: Home },
-  { key: "animals", label: "個体", href: "/animals", icon: ClipboardList },
-  { key: "hygiene", label: "衛生", href: "/hygiene", icon: ShieldCheck },
-  { key: "inventory", label: "在庫", href: "/inventory", icon: Package },
-  { key: "settings", label: "設定", href: "/settings", icon: Settings },
+  { key: "dashboard", label: "\u30db\u30fc\u30e0", href: "/dashboard", icon: Home },
+  { key: "animals", label: "\u500b\u4f53", href: "/animals", icon: ClipboardList },
+  { key: "pdf", label: "PDF", href: "/traceability", icon: FileText },
+  { key: "settings", label: "\u8a2d\u5b9a", href: "/settings", icon: Settings },
 ] satisfies Array<{
   key: AppNavKey;
   label: string;
@@ -16,7 +15,7 @@ const appNavigation = [
 }>;
 
 export const secondaryNavigation = [
-  { label: "履歴", href: "/shipments", icon: History },
+  { label: "\u5c65\u6b74", href: "/shipments", icon: History },
   { label: "PDF", href: "/pdf", icon: ClipboardList },
 ];
 

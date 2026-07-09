@@ -8,9 +8,9 @@ import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, Input, Select, Textarea } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { addAnimal, hasDuplicateAnimalNumber } from "@/lib/animalStorage";
 import { createAutoHygieneRecordsForAnimal } from "@/lib/autoHygieneRecords";
 import { defaultFacilitySettings, defaultSpecies, getFacilitySettings, getSpeciesName, type FacilityAnimalSpecies } from "@/lib/facilitySettingsStorage";
+import { createAnimal, hasDuplicateAnimalNumber } from "@/lib/supabase/animals";
 import { fetchCurrentLocationWeather, type CurrentLocationWeather } from "@/lib/weather";
 import {
   bleedingPerformedLabel,
@@ -327,10 +327,10 @@ export default function AnimalReceivePage() {
     setCurrentStep((step) => Math.max(step - 1, 0));
   }
 
-  function completeTemporaryRegistration() {
+  async function registerAnimal() {
     if (!validateStep(4) || !form.species) return;
 
-    if (hasDuplicateAnimalNumber(form.animalNumber)) {
+    if (await hasDuplicateAnimalNumber(form.animalNumber)) {
       setErrors(["この個体識別番号は既に登録されています。"]);
       return;
     }
@@ -375,14 +375,15 @@ export default function AnimalReceivePage() {
       updatedByName: creatorName,
     };
 
-    if (!addAnimal(animal)) {
+    const savedAnimal = await createAnimal(animal);
+    if (!savedAnimal) {
       setErrors(["この個体識別番号は既に登録されています。"]);
       return;
     }
 
-    createAutoHygieneRecordsForAnimal(animal);
+    createAutoHygieneRecordsForAnimal(savedAnimal.animal);
     window.sessionStorage.removeItem(receiveFormDraftKey);
-    setRegisteredAnimalNumber(animal.animalNumber);
+    setRegisteredAnimalNumber(savedAnimal.animal.animalNumber);
     setIsCompleted(true);
   }
 
@@ -664,8 +665,8 @@ export default function AnimalReceivePage() {
             <div className="grid place-items-center gap-4 py-4 text-center">
               <CheckCircle2 className="text-[var(--color-primary)]" size={72} />
               <div>
-                <p className="text-xl font-bold text-[var(--color-primary)]">仮登録が完了しました</p>
-                <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">次StepでSupabase保存処理に置き換え予定です。</p>
+                <p className="text-xl font-bold text-[var(--color-primary)]">登録が完了しました</p>
+                <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">個体データを保存しました。</p>
               </div>
               <Link className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 text-sm font-semibold text-white" href="/animals">
                 一覧に戻る
@@ -716,9 +717,9 @@ export default function AnimalReceivePage() {
                   </div>
                 ))}
               </div>
-              <Badge variant="muted">localStorageへの仮保存です。DB保存はまだ行いません。</Badge>
+              <Badge variant="muted">Supabaseへ保存します。保存できない場合のみ端末内に保存します。</Badge>
               <p className="rounded-xl bg-[var(--color-primary-soft)] p-3 text-xs font-bold text-[var(--color-primary-dark)]">衛生3帳票を個体番号に自動記録します。</p>
-              <Button onClick={completeTemporaryRegistration}>仮登録する</Button>
+              <Button onClick={registerAnimal}>個体を登録</Button>
             </>
           )}
         </Card>
@@ -727,7 +728,7 @@ export default function AnimalReceivePage() {
       {!isCompleted ? (
         <div className="grid grid-cols-2 gap-2">
           <Button onClick={goBack} variant="secondary">戻る</Button>
-          {currentStep < steps.length - 1 ? <Button onClick={goNext}>次へ</Button> : <Button onClick={completeTemporaryRegistration}>仮登録する</Button>}
+          {currentStep < steps.length - 1 ? <Button onClick={goNext}>次へ</Button> : <Button onClick={registerAnimal}>個体を登録</Button>}
         </div>
       ) : null}
     </AppLayout>

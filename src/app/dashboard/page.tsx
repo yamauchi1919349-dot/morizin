@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { BottomNavigation, Button, Card } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
-import { getAnimals } from "@/lib/animalStorage";
 import { defaultFacilitySettings, getFacilitySettings, type FacilitySettings } from "@/lib/facilitySettingsStorage";
+import { listAnimals } from "@/lib/supabase/animals";
 import { emptyWeather, fetchCurrentLocationWeather, formatDashboardWeatherLine, type CurrentLocationWeather } from "@/lib/weather";
 import { type Animal } from "@/types/gibier";
 
@@ -158,7 +158,9 @@ export default function DashboardPage() {
 
     void updateWeather();
     const timeoutId = window.setTimeout(() => {
-      setStoredAnimals(getAnimals());
+      void listAnimals().then((animals) => {
+        if (isMounted) setStoredAnimals(animals);
+      });
       setFacilitySettings(getFacilitySettings());
     }, 0);
 

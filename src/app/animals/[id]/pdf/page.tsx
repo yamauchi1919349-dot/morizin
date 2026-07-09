@@ -8,12 +8,12 @@ import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, SectionTitle } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
 import { facilityHygieneFormItems, healthCheckFormItems, traceabilityFormItems, workHygieneFormItems } from "@/constants/hygieneForms";
-import { getAnimals } from "@/lib/animalStorage";
 import { getAnimalPhotosByAnimalId } from "@/lib/animalPhotoStorage";
 import { generateAnimalKartePdf } from "@/lib/animalKartePdf";
 import { getFacilityHygieneRecords, getHealthCheckRecords, getWorkHygieneRecords } from "@/lib/hygieneStorage";
 import { getInventoryItemsByAnimalId } from "@/lib/inventoryStorage";
 import { getShipmentsByAnimalId } from "@/lib/shipmentStorage";
+import { getAnimalById } from "@/lib/supabase/animals";
 import { generateTraceabilityPdf } from "@/lib/traceabilityPdf";
 import { getSpeciesName } from "@/lib/facilitySettingsStorage";
 import {
@@ -90,7 +90,7 @@ export default function AnimalPdfPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      const storedAnimal = getAnimals().find((item) => item.id === animalId || item.animalNumber === animalId);
+      void getAnimalById(animalId).then((storedAnimal) => {
       const nextAnimal = storedAnimal ?? null;
       setAnimal(nextAnimal);
 
@@ -114,6 +114,7 @@ export default function AnimalPdfPage() {
       setHealthRecords(getHealthCheckRecords().filter((record) => !record.animalNumber || matchesAnimal(nextAnimal, record.animalId, record.animalNumber)));
       setInventoryItems(uniqueById(localInventory));
       setShipments(uniqueById(localShipments));
+      });
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
