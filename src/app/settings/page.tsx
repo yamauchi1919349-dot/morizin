@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { ArrowLeft, CreditCard, Settings, Users } from "lucide-react";
-import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout";
-import { Badge, BottomNavigation, Button, Card, Input, SectionTitle } from "@/components/ui";
+import { Badge, BottomNavigation, Card, SectionTitle } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
-import { getFacilitySettings, saveFacilitySettings } from "@/lib/facilitySettingsStorage";
 
 const ownerItems = [
   { title: "契約管理", description: "契約状態を確認する器です。", icon: Users },
@@ -14,25 +12,6 @@ const ownerItems = [
 ];
 
 export default function SettingsPage() {
-  const [agingDays, setAgingDays] = useState("3");
-  const [savedMessage, setSavedMessage] = useState("");
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setAgingDays(String(getFacilitySettings().agingDays));
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, []);
-
-  function handleSaveFacilitySettings() {
-    const nextAgingDays = Math.max(0, Number(agingDays) || 0);
-
-    saveFacilitySettings({ ...getFacilitySettings(), agingDays: nextAgingDays });
-    setAgingDays(String(nextAgingDays));
-    setSavedMessage("保存しました");
-  }
-
   return (
     <AppLayout
       bottomNavigation={<BottomNavigation items={createAppNavigationItems("settings")} />}
@@ -48,26 +27,6 @@ export default function SettingsPage() {
           <h1 className="mt-1 text-xl font-bold">設定</h1>
         </div>
       </header>
-
-      <Card className="grid gap-4 rounded-2xl p-4 shadow-sm">
-        <SectionTitle title="施設設定" description="施設ごとの運用条件を保存します。" />
-        <Input
-          className="w-full"
-          inputMode="numeric"
-          label="熟成期間（日）"
-          min={0}
-          onChange={(event) => {
-            setAgingDays(event.target.value);
-            setSavedMessage("");
-          }}
-          type="number"
-          value={agingDays}
-        />
-        <Button className="min-h-12 w-full" onClick={handleSaveFacilitySettings}>
-          保存
-        </Button>
-        {savedMessage ? <p className="text-sm font-bold text-[var(--color-primary)]">{savedMessage}</p> : null}
-      </Card>
 
       <Link href="/settings/facility">
         <Card className="grid gap-3 rounded-2xl p-4 shadow-sm" variant="clickable">
