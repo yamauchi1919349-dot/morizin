@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/layout";
 import { BottomNavigation, Button, Card } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
 import { defaultFacilitySettings, getFacilitySettings, type FacilitySettings } from "@/lib/facilitySettingsStorage";
+import { listUnreadAnnouncementCount } from "@/lib/supabase/announcements";
 import { listAnimals } from "@/lib/supabase/animals";
 import { emptyWeather, fetchCurrentLocationWeather, formatDashboardWeatherLine, type CurrentLocationWeather } from "@/lib/weather";
 import { type Animal } from "@/types/gibier";
@@ -138,6 +139,7 @@ export default function DashboardPage() {
   const [weatherError, setWeatherError] = useState(false);
   const [storedAnimals, setStoredAnimals] = useState<Animal[]>([]);
   const [facilitySettings, setFacilitySettings] = useState<FacilitySettings>(defaultFacilitySettings);
+  const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -161,6 +163,14 @@ export default function DashboardPage() {
       void listAnimals().then((animals) => {
         if (isMounted) setStoredAnimals(animals);
       });
+      void listUnreadAnnouncementCount()
+        .then((count) => {
+          if (isMounted) setUnreadAnnouncementCount(count);
+        })
+        .catch((error) => {
+          console.warn("Unread announcement count failed.", error);
+          if (isMounted) setUnreadAnnouncementCount(0);
+        });
       setFacilitySettings(getFacilitySettings());
     }, 0);
 
@@ -197,10 +207,15 @@ export default function DashboardPage() {
             <p className="mt-1 text-xs font-semibold text-[var(--color-text-muted)]">2026年6月24日（水）</p>
           </div>
           <div className="relative">
-            <Button aria-label="通知" className="border-0 bg-white/75" variant="icon">
+            <Button aria-hidden="true" className="border-0 bg-white/75" tabIndex={-1} variant="icon">
               <Bell size={20} />
             </Button>
-            <span className="absolute right-1 top-1 h-3 w-3 rounded-full bg-red-600 ring-2 ring-white" />
+            <Link aria-label="通知" className="absolute inset-0 z-10 rounded-[var(--radius-md)]" href="/notifications" />
+            {unreadAnnouncementCount > 0 ? (
+              <span className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+                {unreadAnnouncementCount >= 10 ? "9+" : unreadAnnouncementCount}
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="mt-3 flex justify-end">

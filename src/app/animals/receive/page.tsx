@@ -435,7 +435,7 @@ export default function AnimalReceivePage() {
       {currentStep === 0 ? (
         <Card className="grid gap-4 rounded-2xl p-4 shadow-sm">
           <h2 className="text-center text-sm font-bold">基本情報</h2>
-          <Input label="個体識別番号 *" onChange={(event) => updateForm("animalNumber", event.target.value)} placeholder="126046" value={form.animalNumber} />
+          <Input inputMode="numeric" label="個体識別番号 *" onChange={(event) => updateForm("animalNumber", event.target.value)} pattern="[0-9]*" placeholder="126046" value={form.animalNumber} />
           <Select label="種別 *" onChange={(event) => updateForm("species", event.target.value as AnimalSpecies)} value={form.species}>
             <option value="">選択してください</option>
             {speciesOptions.map((species) => (
@@ -717,9 +717,6 @@ export default function AnimalReceivePage() {
                   </div>
                 ))}
               </div>
-              <Badge variant="muted">Supabaseへ保存します。保存できない場合のみ端末内に保存します。</Badge>
-              <p className="rounded-xl bg-[var(--color-primary-soft)] p-3 text-xs font-bold text-[var(--color-primary-dark)]">衛生3帳票を個体番号に自動記録します。</p>
-              <Button onClick={registerAnimal}>個体を登録</Button>
             </>
           )}
         </Card>

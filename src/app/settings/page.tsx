@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CreditCard, Database, Settings, Users } from "lucide-react";
+import { ArrowLeft, CreditCard, Database, Megaphone, Settings, Users } from "lucide-react";
 import { useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, SectionTitle } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { isMorizinDeveloperUser } from "@/lib/supabase/announcements";
 import { migrateLocalAnimalsToSupabase, type AnimalMigrationResult } from "@/lib/supabase/animals";
 
 const ownerItems = [
@@ -16,6 +17,7 @@ const ownerItems = [
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const isDeveloper = isMorizinDeveloperUser(user);
   const [migrationResult, setMigrationResult] = useState<AnimalMigrationResult | null>(null);
   const [isMigratingAnimals, setIsMigratingAnimals] = useState(false);
 
@@ -56,6 +58,21 @@ export default function SettingsPage() {
           </div>
         </Card>
       </Link>
+
+      {isDeveloper ? (
+        <Link href="/developer/announcements">
+          <Card className="grid gap-3 rounded-2xl p-4 shadow-sm" variant="clickable">
+            <div className="flex items-center justify-between gap-3">
+              <Megaphone className="text-[var(--color-primary)]" size={28} />
+              <Badge>Developer</Badge>
+            </div>
+            <div>
+              <p className="font-bold">お知らせ管理</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">森zin運営から表示するお知らせを作成・編集します。</p>
+            </div>
+          </Card>
+        </Link>
+      ) : null}
 
       {user ? (
         <Card className="grid gap-3 rounded-2xl p-4 shadow-sm">
