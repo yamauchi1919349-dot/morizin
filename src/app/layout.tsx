@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AuthProviderBoundary } from "@/lib/auth/AuthProviderBoundary";
+import { AuthProvider } from "@/lib/auth/AuthProvider";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gibier.arcnest.jp";
@@ -33,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body>
-        <AuthProviderBoundary>{children}</AuthProviderBoundary>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

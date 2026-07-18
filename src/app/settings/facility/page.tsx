@@ -1,54 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, Copy, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, Input, SectionTitle, Select, Textarea } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import {
+  createInviteCode,
   defaultFacilitySettings,
   defaultSpecies,
   getFacilitySettings,
   saveFacilitySettings,
   type FacilityAnimalSpecies,
   type FacilitySettings,
+  type FacilityStaffMember,
+  type FacilityStaffRole,
 } from "@/lib/facilitySettingsStorage";
-import {
-  disableStaff,
-  inviteStaff,
-  listStaffMembers,
-  type StaffMember,
-  type StaffRole,
-  type StaffStatus,
-} from "@/lib/supabase/staff";
 
 const agingPresets = [0, 3, 7, 14];
-const staffMaintenanceMessage = "スタッフ招待機能は現在メンテナンス中です。既存スタッフの閲覧はできますが、招待・変更・無効化は一時停止しています。";
 
 function createSpeciesId(name: string) {
   const normalized = name.trim().toLowerCase().replace(/\s+/g, "-");
   return normalized ? `custom-${normalized}-${Date.now()}` : `custom-species-${Date.now()}`;
 }
 
+function createStaff(name: string, email: string, role: FacilityStaffRole): FacilityStaffMember {
+  const id = `staff-${Date.now()}`;
+  return {
+    id,
+    name,
+    email,
+    role,
+    inviteCode: createInviteCode(email),
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export default function FacilitySettingsPage() {
-  const { isConfigured, user } = useAuth();
   const [settings, setSettings] = useState<FacilitySettings>(defaultFacilitySettings);
   const [speciesName, setSpeciesName] = useState("");
   const [staffName, setStaffName] = useState("");
   const [staffEmail, setStaffEmail] = useState("");
-  const [staffRole, setStaffRole] = useState<StaffRole>("staff");
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [isStaffLoading, setIsStaffLoading] = useState(true);
-  const [isStaffSubmitting, setIsStaffSubmitting] = useState(false);
-  const [staffError, setStaffError] = useState("");
-  const [staffMessage, setStaffMessage] = useState("");
-  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [editingRole, setEditingRole] = useState<StaffRole>("staff");
-  const [editingStatus, setEditingStatus] = useState<StaffStatus>("active");
+  const [staffRole, setStaffRole] = useState<FacilityStaffRole>("staff");
   const [message, setMessage] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -57,28 +53,6 @@ export default function FacilitySettingsPage() {
 
     return () => window.clearTimeout(timeoutId);
   }, []);
-
-  const loadStaff = useCallback(async function loadStaff() {
-    if (!isConfigured || !user) {
-      setStaff([]);
-      setIsStaffLoading(false);
-      return;
-    }
-    setIsStaffLoading(true);
-    setStaffError("");
-    try {
-      setStaff(await listStaffMembers());
-    } catch (error) {
-      setStaffError(error instanceof Error ? error.message : "スタッフ一覧を取得できませんでした。");
-    } finally {
-      setIsStaffLoading(false);
-    }
-  }, [isConfigured, user]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => void loadStaff(), 0);
-    return () => window.clearTimeout(timeoutId);
-  }, [loadStaff]);
 
   function updateFacility<K extends keyof FacilitySettings["facility"]>(key: K, value: FacilitySettings["facility"][K]) {
     setSettings((current) => ({ ...current, facility: { ...current.facility, [key]: value } }));
@@ -121,57 +95,30 @@ export default function FacilitySettingsPage() {
     setMessage("");
   }
 
-  async function addStaff() {
+  function addStaff() {
     const name = staffName.trim();
-    const email = staffEmail.trim();
-    if (!name || !email) {
-      setStaffError("氏名とメールアドレスを入力してください。");
-      return;
-    }
-    setIsStaffSubmitting(true);
-    setStaffError("");
-    setStaffMessage("");
+    if (!name) return;
+
+    const nextStaff = createStaff(name, staffEmail.trim(), staffRole);
+    setSettings((current) => ({ ...current, staff: [...current.staff, nextStaff] }));
+    setStaffName("");
+    setStaffEmail("");
+    setStaffRole("staff");
+    setMessage("");
+  }
+
+  function removeStaff(id: string) {
+    setSettings((current) => ({ ...current, staff: current.staff.filter((staff) => staff.id !== id) }));
+    setMessage("");
+  }
+
+  async function copyInvite(staff: FacilityStaffMember) {
+    const inviteText = `${window.location.origin}/login?invite=${staff.inviteCode}`;
     try {
-      await inviteStaff({ name, email, role: staffRole });
-      await loadStaff();
-      setStaffName("");
-      setStaffEmail("");
-      setStaffRole("staff");
-      setStaffMessage("招待メールを送信しました。");
-    } catch (error) {
-      setStaffError(error instanceof Error ? error.message : "スタッフを招待できませんでした。");
-    } finally {
-      setIsStaffSubmitting(false);
-    }
-  }
-
-  function startEditing(member: StaffMember) {
-    setEditingStaffId(member.id);
-    setEditingName(member.name);
-    setEditingRole(member.role);
-    setEditingStatus(member.status);
-    setStaffError("");
-  }
-
-  function saveStaffEdit() {
-    setStaffMessage("");
-    setStaffError(staffMaintenanceMessage);
-    return;
-  }
-
-  async function removeStaff(id: string) {
-    if (!window.confirm("このスタッフを無効化しますか？")) return;
-    setIsStaffSubmitting(true);
-    setStaffError("");
-    try {
-      await disableStaff(id);
-      await loadStaff();
-      setEditingStaffId(null);
-      setStaffMessage("スタッフを無効化しました。");
-    } catch (error) {
-      setStaffError(error instanceof Error ? error.message : "スタッフを無効化できませんでした。");
-    } finally {
-      setIsStaffSubmitting(false);
+      await navigator.clipboard.writeText(inviteText);
+      setCopyMessage(`${staff.name}の招待URLをコピーしました`);
+    } catch {
+      setCopyMessage(staff.inviteCode);
     }
   }
 
@@ -219,68 +166,39 @@ export default function FacilitySettingsPage() {
       </Card>
 
       <Card className="grid gap-3 rounded-2xl p-4 shadow-sm">
-        <SectionTitle title="スタッフ招待・管理" description="Supabase Authで招待し、同じ施設に所属するスタッフを管理します。" />
-        <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-800">
-          {staffMaintenanceMessage}
-        </p>
-        {staffError ? <p className="rounded-xl bg-red-50 p-3 text-xs font-bold text-red-700">{staffError}</p> : null}
-        {staffMessage ? <p className="rounded-xl bg-[var(--color-primary-soft)] p-3 text-xs font-bold text-[var(--color-primary-dark)]">{staffMessage}</p> : null}
-        {!isConfigured ? <p className="text-sm font-bold text-[var(--color-text-muted)]">Supabase環境変数を設定するとスタッフ管理を利用できます。</p> : null}
+        <SectionTitle title="スタッフ招待・管理" description="Ver1.0.0では招待コードをlocalStorageで管理します。" />
         <div className="grid gap-2">
-          {isStaffLoading ? <p className="text-sm font-bold text-[var(--color-text-muted)]">スタッフを読み込み中...</p> : null}
-          {!isStaffLoading && staff.length === 0 ? <p className="text-sm font-bold text-[var(--color-text-muted)]">スタッフは未登録です。</p> : null}
-          {staff.map((member) => (
-            <div className="grid gap-2 rounded-xl border border-[var(--color-border)] bg-white p-3" key={member.id}>
+          {settings.staff.length === 0 ? <p className="text-sm font-bold text-[var(--color-text-muted)]">スタッフは未登録です。</p> : null}
+          {settings.staff.map((staff) => (
+            <div className="grid gap-2 rounded-xl border border-[var(--color-border)] bg-white p-3" key={staff.id}>
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-bold">{member.name}</p>
-                  <p className="text-xs font-semibold text-[var(--color-text-muted)]">{member.email || "メール未登録"}</p>
+                  <p className="font-bold">{staff.name}</p>
+                  <p className="text-xs font-semibold text-[var(--color-text-muted)]">{staff.email || "メール未登録"}</p>
                 </div>
-                <div className="flex flex-wrap justify-end gap-1">
-                  <Badge variant={member.role === "owner" ? "success" : "muted"}>{member.role === "owner" ? "Owner" : "Staff"}</Badge>
-                  <Badge variant={member.status === "active" ? "success" : member.status === "invited" ? "default" : "muted"}>
-                    {member.status === "active" ? "有効" : member.status === "invited" ? "招待中" : "無効"}
-                  </Badge>
-                </div>
+                <Badge variant={staff.role === "owner" ? "success" : "muted"}>{staff.role === "owner" ? "Owner" : "Staff"}</Badge>
               </div>
-              {editingStaffId === member.id ? (
-                <div className="grid gap-2 rounded-lg bg-[var(--color-background)] p-2">
-                  <Input label="氏名" onChange={(event) => setEditingName(event.target.value)} value={editingName} />
-                  <Select label="権限" onChange={(event) => setEditingRole(event.target.value as StaffRole)} value={editingRole}>
-                    <option value="owner">Owner</option>
-                    <option value="staff">Staff</option>
-                  </Select>
-                  <Select label="状態" onChange={(event) => setEditingStatus(event.target.value as StaffStatus)} value={editingStatus}>
-                    {member.status === "invited" ? <option value="invited">招待中</option> : null}
-                    {member.status !== "invited" ? <option value="active">有効</option> : null}
-                    <option value="disabled">無効</option>
-                  </Select>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button disabled onClick={() => void saveStaffEdit()}>保存</Button>
-                    <Button disabled={isStaffSubmitting} onClick={() => setEditingStaffId(null)} variant="secondary">キャンセル</Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-[1fr_auto] gap-2">
-                  <Button disabled leftIcon={<Pencil size={16} />} onClick={() => startEditing(member)} variant="secondary">
-                    編集
-                  </Button>
-                  <Button aria-label="スタッフを無効化" disabled onClick={() => void removeStaff(member.id)} variant="icon">
+              <p className="rounded-lg bg-[var(--color-background)] p-2 text-xs font-bold text-[var(--color-text-muted)]">招待コード: {staff.inviteCode}</p>
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <Button leftIcon={<Copy size={16} />} onClick={() => void copyInvite(staff)} variant="secondary">
+                  招待URLをコピー
+                </Button>
+                <Button aria-label="スタッフ削除" onClick={() => removeStaff(staff.id)} variant="icon">
                   <Trash2 size={18} />
-                  </Button>
-                </div>
-              )}
+                </Button>
+              </div>
             </div>
           ))}
         </div>
+        {copyMessage ? <p className="text-xs font-bold text-[var(--color-primary)]">{copyMessage}</p> : null}
         <Input label="氏名" onChange={(event) => setStaffName(event.target.value)} value={staffName} />
         <Input label="メールアドレス" onChange={(event) => setStaffEmail(event.target.value)} type="email" value={staffEmail} />
-        <Select label="権限" onChange={(event) => setStaffRole(event.target.value as StaffRole)} value={staffRole}>
+        <Select label="権限" onChange={(event) => setStaffRole(event.target.value as FacilityStaffRole)} value={staffRole}>
           <option value="owner">Owner</option>
           <option value="staff">Staff</option>
         </Select>
-        <Button disabled leftIcon={<Plus size={18} />} onClick={() => void addStaff()}>
-          {isStaffSubmitting ? "処理中..." : "スタッフを招待"}
+        <Button leftIcon={<Plus size={18} />} onClick={addStaff}>
+          スタッフ追加
         </Button>
       </Card>
 
