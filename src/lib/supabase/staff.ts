@@ -20,7 +20,7 @@ export type StaffListItem = {
 
 async function staffRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const supabase = createSupabaseBrowserClient();
-  if (!supabase) throw new Error("Supabaseが設定されていません。");
+  if (!supabase) throw new Error("クラウド連携が設定されていません。");
 
   const { data } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
@@ -39,8 +39,8 @@ async function staffRequest<T>(path: string, init?: RequestInit): Promise<T> {
   return result;
 }
 
-export async function listStaff() {
-  const result = await staffRequest<{ staff: StaffListItem[] }>("/api/staff/list");
+export async function listStaff(signal?: AbortSignal) {
+  const result = await staffRequest<{ staff: StaffListItem[] }>("/api/staff/list", { signal });
   return result.staff;
 }
 

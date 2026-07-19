@@ -2,36 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { StaffApiError } from "@/lib/supabase/server";
-
-export type FacilitySettingsSpecies = {
-  id: string;
-  name: string;
-};
-
-export type FacilitySettingsValue = {
-  facility: {
-    name: string;
-    postalCode: string;
-    address: string;
-    phoneNumber: string;
-    managerName: string;
-    registrationNumber: string;
-    notes: string;
-  };
-  agingDays: number;
-  species: FacilitySettingsSpecies[];
-  pdf: {
-    facilityName: string;
-    phoneNumber: string;
-    creatorName: string;
-  };
-};
-
-export type FacilitySettingsResponse = {
-  settings: FacilitySettingsValue;
-  settingsVersion: number;
-  updatedAt: string;
-};
+import type { FacilitySettingsApiResponse, FacilitySettingsDto, FacilitySettingsPdf, FacilitySettingsSpecies } from "@/types/facilitySettings";
 
 type FacilitySettingsRow = {
   id: string;
@@ -109,7 +80,7 @@ function normalizeDatabaseSpecies(value: unknown): FacilitySettingsSpecies[] {
   return normalized.length > 0 ? normalized : defaultSpecies.map((item) => ({ ...item }));
 }
 
-function normalizeDatabasePdf(value: unknown): FacilitySettingsValue["pdf"] {
+function normalizeDatabasePdf(value: unknown): FacilitySettingsPdf {
   const pdf = isPlainObject(value) ? value : {};
   return {
     facilityName: normalizeDatabaseText(pdf.facilityName).trim(),
@@ -118,7 +89,7 @@ function normalizeDatabasePdf(value: unknown): FacilitySettingsValue["pdf"] {
   };
 }
 
-function rowToResponse(row: FacilitySettingsRow): FacilitySettingsResponse {
+function rowToResponse(row: FacilitySettingsRow): FacilitySettingsApiResponse {
   return {
     settings: {
       facility: {
@@ -139,7 +110,7 @@ function rowToResponse(row: FacilitySettingsRow): FacilitySettingsResponse {
   };
 }
 
-export function validateFacilitySettingsBody(body: Record<string, unknown>): FacilitySettingsValue {
+export function validateFacilitySettingsBody(body: Record<string, unknown>): FacilitySettingsDto {
   if (!hasExactKeys(body, ["settings"])) {
     throw new StaffApiError(400, "リクエストに不要な項目が含まれています。");
   }
@@ -206,7 +177,7 @@ export async function getFacilitySettingsForFacility(admin: SupabaseClient, faci
   return rowToResponse(data);
 }
 
-export async function updateFacilitySettingsForFacility(admin: SupabaseClient, facilityId: string, settings: FacilitySettingsValue) {
+export async function updateFacilitySettingsForFacility(admin: SupabaseClient, facilityId: string, settings: FacilitySettingsDto) {
   const { data, error } = await admin
     .from("facilities")
     .update({

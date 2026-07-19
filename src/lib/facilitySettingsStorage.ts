@@ -164,6 +164,22 @@ export function getFacilitySettings(): FacilitySettings {
   }
 }
 
+export function getScopedFacilitySettings(facilityId: string): FacilitySettings | null {
+  if (typeof window === "undefined" || !facilityId) return null;
+  const raw = window.localStorage.getItem(`${facilitySettingsStorageKey}:${facilityId}`);
+  if (!raw) return null;
+
+  try {
+    return normalizeFacilitySettings(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export function hasUnscopedFacilitySettings() {
+  return typeof window !== "undefined" && window.localStorage.getItem(facilitySettingsStorageKey) !== null;
+}
+
 export function saveFacilitySettings(settings: FacilitySettings) {
   if (typeof window === "undefined") return;
 
