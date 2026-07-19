@@ -110,24 +110,17 @@ export function textValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export function getInviteRedirectUrl(request: Request, token: string) {
-  const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-  const origin = configuredOrigin || new URL(request.url).origin;
-  return `${origin}/auth/invite?token=${encodeURIComponent(token)}`;
+const productionInviteOrigin = "https://morizin.vercel.app";
+
+export function getInviteRedirectUrl(token: string) {
+  const redirectUrl = new URL("/auth/invite", productionInviteOrigin);
+  redirectUrl.searchParams.set("token", token);
+  return redirectUrl.toString();
 }
 
-export async function sendInvitationEmail(email: string, displayName: string, redirectTo: string) {
-  const config = getServerConfig();
-  const mailClient = createClient(config.url, config.anonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  return mailClient.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: true,
-      emailRedirectTo: redirectTo,
-      data: { name: displayName },
-    },
+export function sendInvitationEmail(admin: SupabaseClient, email: string, displayName: string, redirectTo: string) {
+  return admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo,
+    data: { name: displayName },
   });
 }
