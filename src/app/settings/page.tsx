@@ -16,7 +16,8 @@ const ownerItems = [
 ];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { isConfigured, scope, user } = useAuth();
+  const isOwner = !isConfigured || scope.role === "owner";
   const isDeveloper = isMorizinDeveloperUser(user);
   const [migrationResult, setMigrationResult] = useState<AnimalMigrationResult | null>(null);
   const [isMigratingAnimals, setIsMigratingAnimals] = useState(false);
@@ -46,7 +47,7 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <Link href="/settings/facility">
+      {isOwner ? <Link href="/settings/facility">
         <Card className="grid gap-3 rounded-2xl p-4 shadow-sm" variant="clickable">
           <div className="flex items-center justify-between gap-3">
             <Settings className="text-[var(--color-primary)]" size={28} />
@@ -57,7 +58,7 @@ export default function SettingsPage() {
             <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">施設情報、スタッフ招待、熟成期間、種別、PDF表示情報を登録します。</p>
           </div>
         </Card>
-      </Link>
+      </Link> : null}
 
       {isDeveloper ? (
         <Link href="/developer/announcements">
@@ -102,7 +103,7 @@ export default function SettingsPage() {
         </Card>
       ) : null}
 
-      <section className="grid gap-3">
+      {isOwner ? <section className="grid gap-3">
         <SectionTitle title="Owner専用管理" description="今回は表示だけの空器です。" />
         <div className="grid gap-3">
           {ownerItems.map((item) => {
@@ -121,7 +122,7 @@ export default function SettingsPage() {
             );
           })}
         </div>
-      </section>
+      </section> : null}
     </AppLayout>
   );
 }

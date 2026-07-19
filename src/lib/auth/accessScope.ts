@@ -3,6 +3,8 @@ export type AccessScope = {
   userId: string;
   name?: string;
   email?: string;
+  role?: "owner" | "staff";
+  status?: "active" | "disabled";
   isAuthenticated: boolean;
   isSupabaseConfigured: boolean;
 };
@@ -46,6 +48,8 @@ export function getCurrentAccessScope(): AccessScope {
       userId: parsedScope.userId,
       name: parsedScope.name,
       email: parsedScope.email,
+      role: parsedScope.role === "owner" || parsedScope.role === "staff" ? parsedScope.role : undefined,
+      status: parsedScope.status === "active" || parsedScope.status === "disabled" ? parsedScope.status : undefined,
       isAuthenticated: Boolean(parsedScope.isAuthenticated),
       isSupabaseConfigured: Boolean(parsedScope.isSupabaseConfigured),
     };

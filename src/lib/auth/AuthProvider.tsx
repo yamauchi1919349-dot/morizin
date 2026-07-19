@@ -16,26 +16,23 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-function getFallbackFacilityId(user: User) {
-  const metadataFacilityId = user.user_metadata?.facility_id;
-  return typeof metadataFacilityId === "string" && metadataFacilityId ? metadataFacilityId : `user-${user.id}`;
-}
-
 async function loadAccessScopeForUser(user: User): Promise<AccessScope> {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) return getLocalAccessScope();
 
   const { data } = await supabase
     .from("profiles")
-    .select("facility_id,email,name")
+    .select("facility_id,email,name,role,status")
     .eq("user_id", user.id)
     .maybeSingle();
 
   return {
-    facilityId: data?.facility_id ?? getFallbackFacilityId(user),
+    facilityId: data?.facility_id ?? `unassigned-${user.id}`,
     userId: user.id,
     name: data?.name ?? user.user_metadata?.name ?? user.user_metadata?.full_name ?? undefined,
     email: data?.email ?? user.email ?? undefined,
+    role: data?.role === "owner" || data?.role === "staff" ? data.role : undefined,
+    status: data?.status === "active" || data?.status === "disabled" ? data.status : undefined,
     isAuthenticated: true,
     isSupabaseConfigured: true,
   };

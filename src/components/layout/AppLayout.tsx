@@ -15,7 +15,7 @@ type AppLayoutProps = {
   className?: string;
 };
 
-const publicPaths = ["/login", "/terms", "/privacy", "/legal"];
+const publicPaths = ["/login", "/auth/invite", "/terms", "/privacy", "/legal"];
 
 export function AppLayout({ children, header, bottomNavigation, className }: AppLayoutProps) {
   const pathname = usePathname();
@@ -40,6 +40,17 @@ export function AppLayout({ children, header, bottomNavigation, className }: App
     return (
       <div className="grid min-h-screen place-items-center bg-[var(--color-background)] px-4 text-center text-sm font-bold text-[var(--color-text-muted)]">
         ログイン画面へ移動しています...
+      </div>
+    );
+  }
+
+  if (shouldRequireLogin && scope.status === "disabled") {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[var(--color-background)] px-4 text-center">
+        <div className="grid gap-3">
+          <p className="font-bold text-[var(--color-text)]">このアカウントは無効化されています。</p>
+          <button className="text-sm font-bold text-[var(--color-primary)]" onClick={() => void signOut()} type="button">ログアウト</button>
+        </div>
       </div>
     );
   }
