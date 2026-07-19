@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, Pencil, Plus, Trash2, XCircle } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Badge, BottomNavigation, Button, Card, Input, SectionTitle, Textarea } from "@/components/ui";
 import { createAppNavigationItems } from "@/constants/appNavigation";
@@ -17,7 +17,11 @@ import {
   type FacilityAnimalSpecies,
   type FacilitySettings,
 } from "@/lib/facilitySettingsStorage";
-import { FacilitySettingsApiError, getFacilitySettingsFromApi } from "@/lib/facilitySettingsApi";
+import {
+  FacilitySettingsApiError,
+  getFacilitySettingsFromApi,
+  updateFacilitySettings,
+} from "@/lib/facilitySettingsApi";
 import { cancelInvitation, disableStaff, inviteStaff, listStaff, updateStaff, type StaffListItem, type StaffStatus } from "@/lib/supabase/staff";
 import type { FacilitySettingsDto } from "@/types/facilitySettings";
 
@@ -32,6 +36,19 @@ function toPageSettings(settings: FacilitySettingsDto): FacilitySettings {
     species: settings.species.map((species) => ({ ...species })),
     pdf: { ...settings.pdf },
   };
+}
+
+function toFacilitySettingsDto(settings: FacilitySettings): FacilitySettingsDto {
+  return {
+    facility: { ...settings.facility },
+    agingDays: settings.agingDays,
+    species: settings.species.map(({ id, name }) => ({ id, name })),
+    pdf: { ...settings.pdf },
+  };
+}
+
+function settingsAreEqual(left: FacilitySettingsDto, right: FacilitySettingsDto) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function withoutLegacyStaff(settings: FacilitySettings): FacilitySettings {
@@ -80,6 +97,12 @@ export default function FacilitySettingsPage() {
   const [legacyStaffCount, setLegacyStaffCount] = useState(0);
   const [facilitySettingsReloadKey, setFacilitySettingsReloadKey] = useState(0);
   const facilitySettingsRequestId = useRef(0);
+  const [persistedFacilitySettings, setPersistedFacilitySettings] = useState<FacilitySettingsDto | null>(null);
+  const [isFacilitySettingsSaving, setIsFacilitySettingsSaving] = useState(false);
+  const [facilitySettingsSaveError, setFacilitySettingsSaveError] = useState("");
+  const [facilitySettingsSaveMessage, setFacilitySettingsSaveMessage] = useState("");
+  const facilitySettingsSaveRequestId = useRef(0);
+  const facilitySettingsSaveController = useRef<AbortController | null>(null);
   const [speciesName, setSpeciesName] = useState("");
   const [staffName, setStaffName] = useState("");
   const [staffEmail, setStaffEmail] = useState("");
@@ -100,6 +123,7 @@ export default function FacilitySettingsPage() {
     : userId && scope.role === "owner" && scope.facilityId && !scope.facilityId.startsWith("unassigned-")
       ? `${userId}:${scope.facilityId}`
       : null;
+  const latestFacilityScopeRef = useRef<string | null>(activeFacilityScopeKey);
   const isFacilitySettingsReady = Boolean(activeFacilityScopeKey)
     && loadedFacilityScopeKey === activeFacilityScopeKey
     && !facilitySettingsError;
@@ -121,7 +145,29 @@ export default function FacilitySettingsPage() {
     && loadedStaffScopeKey === activeStaffScopeKey
     && !isStaffLoading
     && !visibleStaffError;
-  const isFacilityFormReadOnly = isConfigured || isFacilitySettingsLoading || Boolean(facilitySettingsError);
+  const canEditFacilitySettings = Boolean(
+    isConfigured
+    && !isAuthLoading
+    && userId
+    && scope.role === "owner"
+    && scope.status === "active"
+    && scope.facilityId
+    && !scope.facilityId.startsWith("unassigned-")
+    && isFacilitySettingsReady
+    && !isFacilitySettingsLoading
+    && !facilitySettingsError
+    && !isFacilitySettingsSaving,
+  );
+  const isFacilityFormReadOnly = isConfigured
+    ? !canEditFacilitySettings
+    : isFacilitySettingsLoading || Boolean(facilitySettingsError);
+  const currentFacilitySettingsDto = toFacilitySettingsDto(settings);
+  const hasFacilitySettingsChanges = settingsVersion === 0
+    || (persistedFacilitySettings !== null
+      && !settingsAreEqual(currentFacilitySettingsDto, persistedFacilitySettings));
+  const canSaveFacilitySettings = canEditFacilitySettings
+    && settingsVersion !== null
+    && hasFacilitySettingsChanges;
   const formattedUpdatedAt = formatUpdatedAt(updatedAt);
 
   useEffect(() => {
@@ -130,6 +176,10 @@ export default function FacilitySettingsPage() {
     let isActive = true;
     const canApply = () => isActive && requestId === facilitySettingsRequestId.current;
     const timeoutId = window.setTimeout(() => {
+      if (facilitySettingsSaveController.current?.signal.aborted) {
+        facilitySettingsSaveController.current = null;
+        setIsFacilitySettingsSaving(false);
+      }
       if (isAuthLoading) {
         setIsFacilitySettingsLoading(true);
         return;
@@ -138,6 +188,9 @@ export default function FacilitySettingsPage() {
       if (!isConfigured) {
         const localSettings = getFacilitySettings();
         setSettings(withoutLegacyStaff(localSettings));
+        setPersistedFacilitySettings(null);
+        setFacilitySettingsSaveError("");
+        setFacilitySettingsSaveMessage("");
         setLegacyStaffCount(localSettings.staff.length);
         setFacilitySettingsSource("local-only");
         setFacilitySettingsError("");
@@ -157,6 +210,9 @@ export default function FacilitySettingsPage() {
       }
 
       setSettings(defaultFacilitySettings);
+      setPersistedFacilitySettings(null);
+      setFacilitySettingsSaveError("");
+      setFacilitySettingsSaveMessage("");
       setIsFacilitySettingsLoading(true);
       setFacilitySettingsError("");
       setFacilitySettingsErrorStatus(null);
@@ -175,6 +231,7 @@ export default function FacilitySettingsPage() {
           setLegacyStaffCount(scopedLocalSettings?.staff.length ?? 0);
           setSettingsVersion(response.settingsVersion);
           setUpdatedAt(response.updatedAt);
+          setPersistedFacilitySettings(response.settings);
           setLoadedFacilityScopeKey(`${userId}:${scope.facilityId}`);
 
           if (response.settingsVersion >= 1) {
@@ -195,6 +252,7 @@ export default function FacilitySettingsPage() {
         .catch((error: unknown) => {
           if (!canApply() || (error instanceof DOMException && error.name === "AbortError")) return;
           setSettings(defaultFacilitySettings);
+          setPersistedFacilitySettings(null);
           setLoadedFacilityScopeKey(null);
           setFacilitySettingsSource("error");
           setFacilitySettingsErrorStatus(error instanceof FacilitySettingsApiError ? error.status : 500);
@@ -213,6 +271,14 @@ export default function FacilitySettingsPage() {
       controller.abort();
     };
   }, [facilitySettingsReloadKey, isAuthLoading, isConfigured, scope.facilityId, scope.role, userId]);
+
+  useLayoutEffect(() => {
+    latestFacilityScopeRef.current = activeFacilityScopeKey;
+    return () => {
+      facilitySettingsSaveController.current?.abort();
+      facilitySettingsSaveRequestId.current += 1;
+    };
+  }, [activeFacilityScopeKey]);
 
   const loadStaff = useCallback(async () => {
     const requestSequence = ++staffRequestSequence.current;
@@ -269,14 +335,21 @@ export default function FacilitySettingsPage() {
     };
   }, [loadStaff]);
 
+  function clearFacilitySaveFeedback() {
+    setFacilitySettingsSaveError("");
+    setFacilitySettingsSaveMessage("");
+  }
+
   function updateFacility<K extends keyof FacilitySettings["facility"]>(key: K, value: FacilitySettings["facility"][K]) {
     setSettings((current) => ({ ...current, facility: { ...current.facility, [key]: value } }));
     setMessage("");
+    clearFacilitySaveFeedback();
   }
 
   function updatePdf<K extends keyof FacilitySettings["pdf"]>(key: K, value: FacilitySettings["pdf"][K]) {
     setSettings((current) => ({ ...current, pdf: { ...current.pdf, [key]: value } }));
     setMessage("");
+    clearFacilitySaveFeedback();
   }
 
   function updateSpecies(id: string, name: string) {
@@ -285,6 +358,7 @@ export default function FacilitySettingsPage() {
       species: current.species.map((species) => (species.id === id ? { ...species, name } : species)),
     }));
     setMessage("");
+    clearFacilitySaveFeedback();
   }
 
   function addSpecies() {
@@ -295,6 +369,7 @@ export default function FacilitySettingsPage() {
     setSettings((current) => ({ ...current, species: [...current.species, nextSpecies] }));
     setSpeciesName("");
     setMessage("");
+    clearFacilitySaveFeedback();
   }
 
   function removeSpecies(id: string) {
@@ -303,11 +378,13 @@ export default function FacilitySettingsPage() {
       return { ...current, species: current.species.filter((species) => species.id !== id) };
     });
     setMessage("");
+    clearFacilitySaveFeedback();
   }
 
   function resetDefaultSpecies() {
     setSettings((current) => ({ ...current, species: defaultSpecies }));
     setMessage("");
+    clearFacilitySaveFeedback();
   }
 
   async function addStaff() {
@@ -366,22 +443,61 @@ export default function FacilitySettingsPage() {
     }
   }
 
-  function handleSave() {
-    if (isConfigured) {
-      setMessage("クラウドへの保存は現在準備中です。");
+  async function handleSave() {
+    if (!isConfigured) {
+      const nextSettings = {
+        ...settings,
+        agingDays: Math.max(0, Number(settings.agingDays) || 0),
+        species: settings.species.length > 0 ? settings.species : defaultSpecies,
+      };
+
+      saveFacilitySettings(nextSettings);
+      setSettings(nextSettings);
+      setMessage("施設設定を保存しました");
+      window.setTimeout(() => setMessage(""), 3000);
       return;
     }
 
-    const nextSettings = {
-      ...settings,
-      agingDays: Math.max(0, Number(settings.agingDays) || 0),
-      species: settings.species.length > 0 ? settings.species : defaultSpecies,
-    };
+    if (!canSaveFacilitySettings
+      || !activeFacilityScopeKey
+      || (facilitySettingsSaveController.current && !facilitySettingsSaveController.current.signal.aborted)) return;
+    if (settingsVersion === 0 && facilitySettingsSource === "scoped-local"
+      && !window.confirm("この端末に残っている旧設定をクラウドへ移行しますか？")) return;
 
-    saveFacilitySettings(nextSettings);
-    setSettings(nextSettings);
-    setMessage("施設設定を保存しました");
-    window.setTimeout(() => setMessage(""), 3000);
+    const requestId = ++facilitySettingsSaveRequestId.current;
+    const requestedScopeKey = activeFacilityScopeKey;
+    const controller = new AbortController();
+    facilitySettingsSaveController.current = controller;
+    setIsFacilitySettingsSaving(true);
+    setFacilitySettingsSaveError("");
+    setFacilitySettingsSaveMessage("");
+
+    try {
+      const response = await updateFacilitySettings(currentFacilitySettingsDto, controller.signal);
+      if (controller.signal.aborted
+        || requestId !== facilitySettingsSaveRequestId.current
+        || requestedScopeKey !== latestFacilityScopeRef.current) return;
+
+      setSettings(toPageSettings(response.settings));
+      setPersistedFacilitySettings(response.settings);
+      setSettingsVersion(response.settingsVersion);
+      setUpdatedAt(response.updatedAt);
+      setFacilitySettingsSource("supabase");
+      setFacilitySettingsSaveMessage("施設設定をクラウドへ保存しました。");
+    } catch (error) {
+      if (controller.signal.aborted
+        || requestId !== facilitySettingsSaveRequestId.current
+        || requestedScopeKey !== latestFacilityScopeRef.current) return;
+      setFacilitySettingsSaveError(
+        error instanceof FacilitySettingsApiError ? error.message : "施設設定を保存できませんでした。",
+      );
+    } finally {
+      if (requestId === facilitySettingsSaveRequestId.current
+        && requestedScopeKey === latestFacilityScopeRef.current) {
+        facilitySettingsSaveController.current = null;
+        setIsFacilitySettingsSaving(false);
+      }
+    }
   }
 
   if (isConfigured && !isAuthLoading && scope.role !== "owner") {
@@ -437,17 +553,24 @@ export default function FacilitySettingsPage() {
 
       {isFacilitySettingsReady ? <>
       {facilitySettingsSource === "supabase" ? <p className="rounded-xl bg-[var(--color-primary-soft)] p-3 text-sm font-bold text-[var(--color-primary-dark)]">この設定はクラウドに保存済みです。</p> : null}
-      {facilitySettingsSource === "scoped-local" ? <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-800">この端末に残っている旧設定を表示しています。クラウド保存への移行準備中のため、現在は閲覧のみできます。</p> : null}
-      {facilitySettingsSource === "supabase-initial" ? <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-800">クラウド上の初期設定を表示しています。クラウド保存への移行準備中のため、現在は閲覧のみできます。</p> : null}
+      {facilitySettingsSource === "scoped-local" ? <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-800">この端末に残っている旧設定です。保存するとクラウドへ移行されます。</p> : null}
+      {facilitySettingsSource === "supabase-initial" ? <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-800">クラウド上の初期設定です。内容を確認して保存してください。</p> : null}
       {hasOldUnscopedSettings ? <p className="rounded-xl bg-red-50 p-3 text-xs font-bold leading-5 text-red-700">旧形式の設定が見つかりました。別施設の可能性があるため自動移行していません。</p> : null}
       {settingsVersion !== null && formattedUpdatedAt ? <p className="text-xs font-semibold text-[var(--color-text-muted)]">最終更新: {formattedUpdatedAt}</p> : null}
 
       {message ? <p className="rounded-xl bg-[var(--color-primary-soft)] p-3 text-sm font-bold text-[var(--color-primary-dark)]">{message}</p> : null}
+      {facilitySettingsSaveError ? <p className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{facilitySettingsSaveError}</p> : null}
+      {facilitySettingsSaveMessage ? <p className="rounded-xl bg-[var(--color-primary-soft)] p-3 text-sm font-bold text-[var(--color-primary-dark)]">{facilitySettingsSaveMessage}</p> : null}
 
-      <Button className="min-h-12 shadow-sm" disabled={isConfigured} onClick={handleSave} type="button">
-        {isConfigured ? "クラウド保存への移行準備中" : "施設設定を保存"}
+      <Button className="min-h-12 shadow-sm" disabled={isConfigured ? !canSaveFacilitySettings : false} onClick={() => void handleSave()} type="button">
+        {isFacilitySettingsSaving
+          ? "保存しています…"
+          : facilitySettingsSource === "scoped-local" && settingsVersion === 0
+            ? "旧設定をクラウドへ移行"
+            : isConfigured
+              ? "クラウドへ保存"
+              : "施設設定を保存"}
       </Button>
-      {isConfigured ? <p className="text-xs font-bold leading-5 text-[var(--color-text-muted)]">クラウド保存への移行準備中のため、現在は閲覧のみできます。</p> : null}
 
       <Card className="grid gap-3 rounded-2xl p-4 shadow-sm">
         <SectionTitle title="施設情報" description="帳票や今後の施設マスタへ移行する基本情報です。" />
@@ -467,7 +590,10 @@ export default function FacilitySettingsPage() {
             <Button
               disabled={isFacilityFormReadOnly}
               key={days}
-              onClick={() => setSettings((current) => ({ ...current, agingDays: days }))}
+              onClick={() => {
+                setSettings((current) => ({ ...current, agingDays: days }));
+                clearFacilitySaveFeedback();
+              }}
               size="sm"
               variant={settings.agingDays === days ? "primary" : "secondary"}
             >
@@ -479,7 +605,10 @@ export default function FacilitySettingsPage() {
           inputMode="numeric"
           label="デフォルト熟成期間（日数）"
           min={0}
-          onChange={(event) => setSettings((current) => ({ ...current, agingDays: Math.max(0, Number(event.target.value) || 0) }))}
+          onChange={(event) => {
+            setSettings((current) => ({ ...current, agingDays: Math.max(0, Number(event.target.value) || 0) }));
+            clearFacilitySaveFeedback();
+          }}
           readOnly={isFacilityFormReadOnly}
           type="number"
           value={settings.agingDays}
